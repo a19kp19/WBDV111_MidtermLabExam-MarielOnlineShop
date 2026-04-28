@@ -536,6 +536,33 @@ const setMsg = (id, msg, ok = false) => {
 };
 const getDisplayName = (u) => u?.username || u?.full_name || (u?.email ? u.email.split("@")[0] : "Account");
 
+function bindPasswordToggles(root) {
+  const scope = root || document;
+  const applyToggle = (btn, show) => {
+    const input = document.getElementById(btn.dataset.toggle);
+    if (!input) return;
+    input.type = show ? "text" : "password";
+    btn.textContent = show ? "Hide" : "Show";
+    btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+  };
+  scope.querySelectorAll(".password-toggle").forEach((btn) => {
+    if (btn.dataset.bound === "1") return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", () => {
+      const input = document.getElementById(btn.dataset.toggle);
+      if (!input) return;
+      const show = input.type !== "text";
+      const group = btn.dataset.group;
+      if (group) {
+        document.querySelectorAll(`.password-toggle[data-group="${group}"]`)
+          .forEach((sibling) => applyToggle(sibling, show));
+      } else {
+        applyToggle(btn, show);
+      }
+    });
+  });
+}
+
 function bindPasswordHint(inputId, hintId) {
   const pw = $("#" + inputId);
   if (!pw) return;
@@ -1611,6 +1638,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindLogin();
   bindResetPassword();
   bindChangePassword();
+  bindPasswordToggles();
   loadAccount();
   updateAuthUI();
   bindAdmin();
