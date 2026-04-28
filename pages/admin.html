@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Mariel Store</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" href="../images/logo.png">
+</head>
+<body data-page="admin">
+
+<div id="site-header"></div>
+
+<section class="page-header">
+  <div class="container">
+    <h1>Admin <em>Dashboard</em></h1>
+    <p>Manage your product catalog — add, edit, and remove items.</p>
+  </div>
+</section>
+
+<section class="section section-white">
+  <div class="container">
+
+    <div id="admin-loading" class="empty">
+      <div class="icon">⏳</div>
+      <p>Checking access...</p>
+    </div>
+
+    <div id="admin-denied" class="empty hidden">
+      <div class="icon">🔒</div>
+      <h2>Access denied</h2>
+      <p class="muted">You don't have permission to view this page.</p>
+      <a class="btn" href="../index.html">Back to Home</a>
+    </div>
+
+    <div id="admin-app" class="hidden">
+
+      <div class="account-card">
+        <div class="account-head">
+          <h2 id="admin-form-title">Add <em>Product</em></h2>
+          <button id="admin-reset-btn" class="btn btn-outline" type="button">Clear Form</button>
+        </div>
+
+        <form id="admin-product-form" novalidate>
+          <input type="hidden" id="p-original-id" value="">
+          <div class="admin-grid">
+            <div class="field">
+              <label for="p-id">Product ID</label>
+              <input type="text" id="p-id" required pattern="[a-z0-9_\-]+" placeholder="lowercase, no spaces">
+            </div>
+            <div class="field">
+              <label for="p-name">Name</label>
+              <input type="text" id="p-name" required>
+            </div>
+            <div class="field">
+              <label for="p-price">Price (₱)</label>
+              <input type="number" id="p-price" min="0" step="0.01" required>
+            </div>
+            <div class="field">
+              <label for="p-stock">Stock</label>
+              <input type="number" id="p-stock" min="0" step="1" required value="0">
+            </div>
+            <div class="field">
+              <label for="p-cat">Category</label>
+              <select id="p-cat" required>
+                <option value="Gadgets">Gadgets</option>
+                <option value="Furnitures">Furnitures</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Foods">Foods</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="p-tag">Tag <span class="muted">(optional, e.g. "New", "Hot")</span></label>
+              <input type="text" id="p-tag" placeholder="">
+            </div>
+            <div class="field admin-full">
+              <label for="p-img">Image URL or path <span class="muted">(e.g. images/products/x.jpg or https://...)</span></label>
+              <input type="text" id="p-img" placeholder="images/products/your-image.jpg">
+            </div>
+            <div class="field admin-full">
+              <label for="p-desc">Short description</label>
+              <input type="text" id="p-desc" placeholder="Shown in product cards">
+            </div>
+            <div class="field admin-full">
+              <label for="p-details">Details</label>
+              <textarea id="p-details" rows="3" placeholder="Longer details shown on the product page"></textarea>
+            </div>
+            <div class="field">
+              <label for="p-sort">Sort order <span class="muted">(lower = earlier)</span></label>
+              <input type="number" id="p-sort" step="1" value="0">
+            </div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button type="submit" class="btn" id="admin-save-btn">Save Product</button>
+            <button type="button" id="admin-cancel-edit-btn" class="btn btn-outline hidden">Cancel Edit</button>
+          </div>
+          <p id="admin-form-message" class="form-msg"></p>
+        </form>
+      </div>
+
+      <div class="account-card" style="margin-top:24px">
+        <div class="account-head">
+          <h2>All <em>Products</em></h2>
+          <span class="muted" id="admin-count">0 items</span>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Tag</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="admin-product-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+
+<script src="../script.js"></script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout | Mariel Store</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" href="../images/logo.png">
+</head>
+<body data-page="checkout">
+
+<div id="site-header"></div>
+
+<section class="page-header">
+  <div class="container">
+    <h1>Secure <em>Checkout</em></h1>
+    <p>Review your order and provide your delivery details.</p>
+  </div>
+</section>
+
+<section class="section section-white">
+  <div class="container">
+
+    <div id="checkout-empty" class="empty hidden">
+      <div class="icon">🛍️</div>
+      <h2>Your cart is empty</h2>
+      <p class="muted">Add some products before checking out.</p>
+      <a class="btn" href="products.html">Browse Products</a>
+    </div>
+
+    <div id="checkout-loading" class="empty">
+      <div class="icon">⏳</div>
+      <p>Loading checkout...</p>
+    </div>
+
+    <div id="checkout-app" class="hidden checkout-grid">
+
+      <form id="checkout-form" class="account-card" novalidate>
+        <h2>Delivery <em>Details</em></h2>
+
+        <div id="saved-addresses-picker" class="hidden" style="margin:6px 0 14px">
+          <p class="muted" style="margin:0 0 10px;font-size:.9rem">Choose a saved address or enter a new one:</p>
+          <div id="saved-addresses-cards" class="addr-picker"></div>
+        </div>
+
+        <div class="checkout-fields">
+          <div class="field">
+            <label for="co-name">Full Name</label>
+            <input type="text" id="co-name" required>
+          </div>
+          <div class="field">
+            <label for="co-phone">Phone</label>
+            <input type="tel" id="co-phone" required placeholder="e.g. 09171234567">
+          </div>
+          <div class="field co-full">
+            <label for="co-email">Email <span class="muted">(for order updates)</span></label>
+            <input type="email" id="co-email">
+          </div>
+          <div class="field co-full">
+            <label for="co-address">Street Address</label>
+            <input type="text" id="co-address" required placeholder="House #, Street, Barangay">
+          </div>
+          <div class="field">
+            <label for="co-city">City / Municipality</label>
+            <input type="text" id="co-city" required>
+          </div>
+          <div class="field">
+            <label for="co-province">Province</label>
+            <input type="text" id="co-province" required>
+          </div>
+          <div class="field">
+            <label for="co-region">Region</label>
+            <select id="co-region" required>
+              <option value="">Select region…</option>
+              <option value="ncr">Metro Manila (NCR)</option>
+              <option value="luzon">Luzon (outside NCR)</option>
+              <option value="visayas">Visayas</option>
+              <option value="mindanao">Mindanao</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="co-postal">Postal Code <span class="muted">(optional)</span></label>
+            <input type="text" id="co-postal" inputmode="numeric">
+          </div>
+          <div class="field co-full">
+            <label for="co-notes">Notes for Rider <span class="muted">(optional)</span></label>
+            <textarea id="co-notes" rows="2" placeholder="e.g. landmarks, gate code"></textarea>
+          </div>
+          <div class="field co-full" id="save-addr-row">
+            <label class="check-row">
+              <input type="checkbox" id="co-save-address" checked>
+              <span>Save this address to my account for next time
+                <span class="muted" id="co-save-help" style="font-size:.85rem">(label will be set to "Home" by default)</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <h2 style="margin-top:18px">Payment <em>Method</em></h2>
+        <div class="pay-options">
+          <label class="pay-opt">
+            <input type="radio" name="co-pay" value="cod" checked>
+            <div>
+              <div class="pay-title">Cash on Delivery</div>
+              <div class="muted">Pay in cash when your order arrives.</div>
+            </div>
+          </label>
+          <label class="pay-opt">
+            <input type="radio" name="co-pay" value="online">
+            <div>
+              <div class="pay-title">Online Payment</div>
+              <div class="muted">We'll message you a payment link (GCash / Maya / Card).</div>
+            </div>
+          </label>
+          <label class="pay-opt">
+            <input type="radio" name="co-pay" value="installment">
+            <div>
+              <div class="pay-title">Installment</div>
+              <div class="muted">For qualified customers — we'll confirm your plan.</div>
+            </div>
+          </label>
+        </div>
+
+        <p id="checkout-message" class="form-msg"></p>
+        <button type="submit" class="btn btn-block" id="place-order-btn">Place Order</button>
+      </form>
+
+      <aside class="account-card checkout-summary">
+        <h2>Order <em>Summary</em></h2>
+        <div id="co-items"></div>
+        <hr style="border:0;border-top:1px solid var(--line,#eee);margin:14px 0">
+        <div class="co-row"><span>Subtotal</span><span id="co-subtotal">₱0.00</span></div>
+        <div class="co-row"><span>Shipping</span><span id="co-shipping">—</span></div>
+        <div class="co-row co-total"><span>Total</span><span id="co-total">₱0.00</span></div>
+        <p class="muted" style="font-size:.82rem;margin-top:10px">Shipping fee is calculated based on your selected region.</p>
+      </aside>
+
+    </div>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+
+<script src="../script.js"></script>
+</body>
+</html>
