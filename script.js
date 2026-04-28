@@ -237,6 +237,18 @@ function buildOverlays() {
         <button id="menu-close" class="close" aria-label="Close menu">✕</button>
       </div>
       ${NAV_ITEMS.map(i => `<a href="${i.href}"${i.key === PAGE_KEY ? ' class="active"' : ""}>${i.label}</a>`).join("")}
+      <div class="mobile-nav-auth">
+        <div id="mobile-auth-text">
+          <a href="${pagePath("login.html")}" class="btn btn-block">Login</a>
+          <a href="${pagePath("register.html")}" class="btn btn-outline btn-block">Register</a>
+        </div>
+        <div id="mobile-user-menu" class="hidden">
+          <a href="${pagePath("account.html")}">My Account</a>
+          <a href="${pagePath("orders.html")}">My Orders</a>
+          <a href="${pagePath("admin.html")}" id="mobile-admin-link" class="hidden">Admin</a>
+          <button type="button" id="mobile-logout-btn" class="link-btn">Sign out</button>
+        </div>
+      </div>
     </nav>
     <div id="toast-stack" class="toast-stack"></div>
   `;
@@ -593,20 +605,31 @@ function updateAuthUI() {
   const u = currentUser();
   const userMenu = $("#user-menu");
   const authText = $("#auth-text");
+  const mAuthText = $("#mobile-auth-text");
+  const mUserMenu = $("#mobile-user-menu");
   if (!u) {
     userMenu?.classList.add("hidden");
     authText?.classList.remove("hidden");
+    mUserMenu?.classList.add("hidden");
+    mAuthText?.classList.remove("hidden");
     return;
   }
   authText?.classList.add("hidden");
   userMenu?.classList.remove("hidden");
+  mAuthText?.classList.add("hidden");
+  mUserMenu?.classList.remove("hidden");
   const name = getDisplayName(u);
   $("#user-name").textContent = name;
   $("#user-avatar").textContent = (name[0] || "A").toUpperCase();
-  $("#logout-btn").onclick = () => { signOut(); location.href = home(); };
+  const signOutAndGoHome = () => { signOut(); location.href = home(); };
+  $("#logout-btn").onclick = signOutAndGoHome;
+  const mLogout = $("#mobile-logout-btn");
+  if (mLogout) mLogout.onclick = signOutAndGoHome;
 
   const link = $("#admin-link");
   if (link) link.classList.toggle("hidden", !u.is_admin);
+  const mLink = $("#mobile-admin-link");
+  if (mLink) mLink.classList.toggle("hidden", !u.is_admin);
 
   if ((PAGE_KEY === "login" || PAGE_KEY === "register")) location.href = home();
 }
