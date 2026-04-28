@@ -133,12 +133,18 @@
       <form id="password-form" novalidate>
         <div class="field">
           <label for="new-password">New Password</label>
-          <input type="password" id="new-password" required>
+          <div class="password-wrap">
+            <input type="password" id="new-password" required>
+            <button type="button" class="password-toggle" data-toggle="new-password" aria-label="Show password">Show</button>
+          </div>
           <p id="new-password-hint" class="hint">Use uppercase, lowercase, number, and a special character.</p>
         </div>
         <div class="field">
           <label for="confirm-new-password">Confirm New Password</label>
-          <input type="password" id="confirm-new-password" required>
+          <div class="password-wrap">
+            <input type="password" id="confirm-new-password" required>
+            <button type="button" class="password-toggle" data-toggle="confirm-new-password" aria-label="Show password">Show</button>
+          </div>
         </div>
         <div class="row">
           <button type="submit" class="btn">Update Password</button>
