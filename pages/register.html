@@ -39,12 +39,18 @@
         </div>
         <div class="field">
           <label for="password">Password</label>
-          <input type="password" id="password" required>
+          <div class="password-wrap">
+            <input type="password" id="password" required>
+            <button type="button" class="password-toggle" data-toggle="password" data-group="register-pw" aria-label="Show password">Show</button>
+          </div>
           <p id="password-hint" class="hint">Use uppercase, lowercase, number, and a special character.</p>
         </div>
         <div class="field">
           <label for="confirm-password">Confirm Password</label>
-          <input type="password" id="confirm-password" required>
+          <div class="password-wrap">
+            <input type="password" id="confirm-password" required>
+            <button type="button" class="password-toggle" data-toggle="confirm-password" data-group="register-pw" aria-label="Show password">Show</button>
+          </div>
         </div>
         <button type="submit" class="btn btn-block">Create Account</button>
       </form>
