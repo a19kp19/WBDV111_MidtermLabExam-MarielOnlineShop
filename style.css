@@ -15,7 +15,7 @@
      11. Auth + Account
      12. Cart drawer + Mobile menu + Toast
      13. Reveal-on-scroll + Responsive
-     14. Admin / Checkout / Orders / Addresses
+     14. Checkout / Orders / Addresses
    Naming: state classes use plain words (.open, .active, .hidden,
    .on, .ok, .bad). Stick with --brand / --ink / --line / --bg
    tokens instead of raw hex codes when editing.
@@ -54,7 +54,7 @@
 /* Reset */
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; padding: 0; }
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+html { scroll-behavior: smooth; }
 body {
   font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
@@ -761,55 +761,6 @@ em { color: inherit; font-style: normal; }
 
 .link-btn { background: none; border: 0; color: var(--brand); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
 .link-btn:hover { opacity: .8; }
-.forgot-row { display: flex; justify-content: flex-end; margin: -8px 0 14px; }
-
-/* ============ Admin page ============ */
-.admin-grid{
-  display:grid;
-  grid-template-columns:repeat(2, minmax(0,1fr));
-  gap:14px 18px;
-}
-.admin-grid .admin-full{ grid-column:1 / -1; }
-@media (max-width:640px){ .admin-grid{ grid-template-columns:1fr; } }
-
-.admin-table-wrap{ overflow-x:auto; }
-.admin-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:.93rem;
-}
-.admin-table th, .admin-table td{
-  text-align:left;
-  padding:10px 12px;
-  border-bottom:1px solid var(--line);
-  vertical-align:middle;
-}
-.admin-table th{
-  font-size:.78rem;
-  letter-spacing:.04em;
-  text-transform:uppercase;
-  color:#777;
-  background:#fafafa;
-}
-.admin-thumb{
-  width:54px; height:54px;
-  object-fit:cover;
-  border-radius:8px;
-  background:#f3f3f3;
-  display:block;
-}
-.admin-actions{ white-space:nowrap; text-align:right; }
-.admin-actions .btn{ margin-left:6px; }
-/* .btn-sm and .btn-danger are defined once in the Buttons section above */
-.tag-pill{
-  display:inline-block;
-  padding:2px 9px;
-  font-size:.72rem;
-  font-weight:600;
-  background:#fff1f0;
-  color:#c0392b;
-  border-radius:999px;
-}
 
 /* ============ Checkout ============ */
 .checkout-grid{
