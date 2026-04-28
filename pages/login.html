@@ -31,7 +31,10 @@
         </div>
         <div class="field">
           <label for="login-password">Password</label>
-          <input type="password" id="login-password" required>
+          <div class="password-wrap">
+            <input type="password" id="login-password" required>
+            <button type="button" class="password-toggle" data-toggle="login-password" aria-label="Show password">Show</button>
+          </div>
         </div>
         <div class="forgot-row">
           <button type="button" id="forgot-password-link" class="link-btn">Forgot password?</button>
