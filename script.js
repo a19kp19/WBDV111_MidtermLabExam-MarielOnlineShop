@@ -15,12 +15,11 @@
      10. REVEAL ON SCROLL     setupReveal
      11. AUTH FORMS           bindRegister / bindLogin / etc.
      12. ACCOUNT              loadAccount + bindAccountEdit
-     13. ADMIN                bindAdmin (CRUD products)
-     14. GLOBAL EVENT WIRING  wireEvents — single delegated listener
-     15. ADDRESSES            bindAddresses (CRUD saved addresses)
-     16. CHECKOUT             bindCheckout (PH cascading dropdowns)
-     17. ORDERS               bindOrders + renderOrderList/Detail
-     18. INIT                 DOMContentLoaded → calls every binder
+     13. GLOBAL EVENT WIRING  wireEvents — single delegated listener
+     14. ADDRESSES            bindAddresses (CRUD saved addresses)
+     15. CHECKOUT             bindCheckout (PH cascading dropdowns)
+     16. ORDERS               bindOrders + renderOrderList/Detail
+     17. INIT                 DOMContentLoaded → calls every binder
 
    Conventions:
    - All persistence goes through readJSON/writeJSON + LS.* keys.
@@ -44,15 +43,25 @@ const peso = (n) => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionD
 const uid  = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 /* Show exactly one of several "state" elements and hide the rest.
-   Replaces the loading/denied/empty/ok pattern repeated by admin,
-   checkout and orders pages. Pass a map of { stateName: element-or-id }
-   then call with the active state name. Missing entries are skipped. */
+   Replaces the loading/empty/ok pattern repeated by checkout and
+   orders pages. Pass a map of { stateName: element-or-id } then call
+   with the active state name. Missing entries are skipped. */
 function setVisibleState(map, active) {
   for (const [name, target] of Object.entries(map)) {
     const el = typeof target === "string" ? document.getElementById(target) : target;
     el?.classList.toggle("hidden", name !== active);
   }
 }
+
+/* Empty / not-found state markup. Pass icon + optional title, text,
+   button [label, href], and an optional extra wrapper attribute string. */
+const emptyState = (icon, title, text, btn, attr = "") => `
+    <div class="empty"${attr}>
+      <div class="icon">${icon}</div>
+      ${title ? `<h2>${title}</h2>` : ""}
+      ${text ? `<p${title ? ` class="muted"` : ""}>${text}</p>` : ""}
+      ${btn ? `<a class="btn" href="${btn[1]}">${btn[0]}</a>` : ""}
+    </div>`;
 
 /* Escape HTML for safe interpolation into innerHTML / attributes. */
 function escapeHtml(s) {
@@ -75,23 +84,6 @@ const LS = {
 
 const readJSON  = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
 const writeJSON = (k, v)  => localStorage.setItem(k, JSON.stringify(v));
-
-/* default admin account */
-function seedAdmin() {
-  const users = readJSON(LS.USERS, []);
-  if (users.some(u => u.email === "admin@marielstore.com")) return;
-  users.push({
-    id: uid(),
-    username: "admin",
-    full_name: "Store Admin",
-    email: "admin@marielstore.com",
-    phone: "",
-    password: "Admin@123",
-    is_admin: true,
-    created_at: new Date().toISOString(),
-  });
-  writeJSON(LS.USERS, users);
-}
 
 /* Auth helpers */
 const getUsers   = () => readJSON(LS.USERS, []);
@@ -153,7 +145,6 @@ function buildHeader() {
             <div class="user-dropdown" id="user-dropdown">
               <a href="${pagePath("account.html")}">My Account</a>
               <a href="${pagePath("orders.html")}">My Orders</a>
-              <a href="${pagePath("admin.html")}" id="admin-link" class="hidden">Admin</a>
               <button id="logout-btn">Sign out</button>
             </div>
           </div>
@@ -245,7 +236,6 @@ function buildOverlays() {
         <div id="mobile-user-menu" class="hidden">
           <a href="${pagePath("account.html")}">My Account</a>
           <a href="${pagePath("orders.html")}">My Orders</a>
-          <a href="${pagePath("admin.html")}" id="mobile-admin-link" class="hidden">Admin</a>
           <button type="button" id="mobile-logout-btn" class="link-btn">Sign out</button>
         </div>
       </div>
@@ -304,7 +294,7 @@ function renderCart() {
   if (count) count.textContent = cart.reduce((s, i) => s + i.qty, 0);
   if (!list || !total) return;
   if (!cart.length) {
-    list.innerHTML = `<div class="empty"><div class="icon">🛒</div><p>Your cart is empty.</p></div>`;
+    list.innerHTML = emptyState("🛒", "", "Your cart is empty.");
     total.textContent = peso(0);
     return;
   }
@@ -348,7 +338,7 @@ function toggleWish(id) {
 }
 
 /* =========================================================
-   PRODUCTS (in-memory + admin overrides via localStorage)
+   PRODUCTS (in-memory + localStorage stock updates)
    ========================================================= */
 function resolveImg(src) {
   if (!src) return base + "images/logo.png";
@@ -449,7 +439,7 @@ function renderProducts() {
 
   grid.innerHTML = list.length
     ? list.map(productCard).join("")
-    : `<div class="empty" style="grid-column:1/-1"><div class="icon">🔍</div><p>No products match your search.</p></div>`;
+    : emptyState("🔍", "", "No products match your search.", null, ' style="grid-column:1/-1"');
 }
 
 function renderFeatured() {
@@ -469,13 +459,9 @@ function renderProductDetail() {
   const p = PRODUCTS.find(x => x.id === id);
 
   if (!p) {
-    host.innerHTML = `
-      <div class="empty">
-        <div class="icon">😕</div>
-        <h2>Product not found</h2>
-        <p class="muted">It may have been removed or the link is invalid.</p>
-        <a class="btn" href="products.html">Back to Products</a>
-      </div>`;
+    host.innerHTML = emptyState("😕", "Product not found",
+      "It may have been removed or the link is invalid.",
+      ["Back to Products", "products.html"]);
     return;
   }
 
@@ -626,11 +612,6 @@ function updateAuthUI() {
   const mLogout = $("#mobile-logout-btn");
   if (mLogout) mLogout.onclick = signOutAndGoHome;
 
-  const link = $("#admin-link");
-  if (link) link.classList.toggle("hidden", !u.is_admin);
-  const mLink = $("#mobile-admin-link");
-  if (mLink) mLink.classList.toggle("hidden", !u.is_admin);
-
   if ((PAGE_KEY === "login" || PAGE_KEY === "register")) location.href = home();
 }
 
@@ -676,7 +657,6 @@ function bindRegister() {
     const user = {
       id: uid(),
       username, full_name: fullName, email, phone: "", password,
-      is_admin: false,
       created_at: new Date().toISOString(),
     };
     users.push(user);
@@ -700,57 +680,6 @@ function bindLogin() {
     signIn(u.id);
     setMsg("login-message", "Login successful. Redirecting...", true);
     setTimeout(() => location.href = home(), 700);
-  });
-
-  // "Forgot password" — static fallback: send to reset page with email param
-  const forgotLink   = $("#forgot-password-link");
-  const forgotForm   = $("#forgot-form");
-  const cancelForgot = $("#cancel-forgot-btn");
-  if (forgotLink && forgotForm) {
-    forgotLink.addEventListener("click", () => {
-      $("#forgot-email").value = $("#login-email").value.trim();
-      forgotForm.classList.remove("hidden");
-      f.classList.add("hidden");
-      setMsg("forgot-message", "");
-    });
-    cancelForgot?.addEventListener("click", () => {
-      forgotForm.classList.add("hidden");
-      f.classList.remove("hidden");
-    });
-    forgotForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const email = $("#forgot-email").value.trim().toLowerCase();
-      if (!email) return setMsg("forgot-message", "Please enter your email.");
-      const u = getUsers().find(x => x.email === email);
-      if (!u) return setMsg("forgot-message", "No account found with that email.");
-      setMsg("forgot-message", "Redirecting to reset page...", true);
-      setTimeout(() => location.href = pagePath("reset-password.html") + "?email=" + encodeURIComponent(email), 600);
-    });
-  }
-}
-
-function bindResetPassword() {
-  const f = $("#reset-form"); if (!f) return;
-  bindPasswordHint("reset-password", "reset-password-hint");
-  const params = new URLSearchParams(location.search);
-  const emailParam = (params.get("email") || "").toLowerCase();
-
-  f.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const password = $("#reset-password").value;
-    const confirm  = $("#reset-confirm").value;
-    setMsg("reset-message", "");
-    if (!isStrong(password)) return setMsg("reset-message", "Password must be at least 6 characters.");
-    if (password !== confirm) return setMsg("reset-message", "Passwords do not match.");
-    if (!emailParam) return setMsg("reset-message", "Missing email — request a reset from the login page.");
-    const users = getUsers();
-    const u = users.find(x => x.email === emailParam);
-    if (!u) return setMsg("reset-message", "Account not found.");
-    u.password = password;
-    setUsers(users);
-    signOut();
-    setMsg("reset-message", "Password updated. Redirecting to login...", true);
-    setTimeout(() => location.href = pagePath("login.html"), 1000);
   });
 }
 
@@ -843,141 +772,6 @@ function bindAccountEdit(u) {
     setTimeout(closeEdit, 700);
   };
 }
-
-/* =========================================================
-   ADMIN PAGE (local product CRUD)
-   ========================================================= */
-function bindAdmin() {
-  const app = $("#admin-app");
-  if (!app) return;
-
-  const adminStates = { loading: "admin-loading", denied: "admin-denied", ok: app };
-
-  const u = currentUser();
-  if (!u) { location.href = pagePath("login.html"); return; }
-  if (!u.is_admin) { setVisibleState(adminStates, "denied"); return; }
-  setVisibleState(adminStates, "ok");
-
-  const form = $("#admin-product-form");
-  const titleEl = $("#admin-form-title");
-  const cancelBtn = $("#admin-cancel-edit-btn");
-  const idInput = $("#p-id");
-
-  const fillForm = (p) => {
-    $("#p-original-id").value = p?.id || "";
-    idInput.value = p?.id || "";
-    idInput.disabled = !!p;
-    $("#p-name").value = p?.name || "";
-    $("#p-price").value = p?.price ?? "";
-    $("#p-stock").value = p?.stock ?? 0;
-    $("#p-cat").value = p?.cat || "Gadgets";
-    $("#p-tag").value = p?.tag || "";
-    $("#p-img").value = p ? stripBase(p.img || "") : "";
-    $("#p-desc").value = p?.desc || p?.description || "";
-    $("#p-details").value = p?.details || "";
-    $("#p-sort").value = p?.sort_order ?? 0;
-    titleEl.innerHTML = p ? `Edit <em>Product</em>` : `Add <em>Product</em>`;
-    cancelBtn.classList.toggle("hidden", !p);
-    setMsg("admin-form-message", "");
-  };
-
-  fillForm(null);
-  $("#admin-reset-btn").onclick = () => fillForm(null);
-  cancelBtn.onclick = () => fillForm(null);
-
-  function refreshTable() {
-    const tbody = $("#admin-product-rows");
-    const data = PRODUCTS.slice();
-    $("#admin-count").textContent = `${data.length} item${data.length === 1 ? "" : "s"}`;
-    if (!data.length) {
-      tbody.innerHTML = `<tr><td colspan="7" class="muted" style="text-align:center;padding:18px">No products yet — add your first one above.</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = data.map(p => `
-      <tr>
-        <td><img src="${p.img}" alt="" class="admin-thumb" onerror="this.style.opacity='.3'"></td>
-        <td>
-          <div style="font-weight:600">${escapeHtml(p.name)}</div>
-          <div class="muted" style="font-size:.78rem">${escapeHtml(p.id)}</div>
-        </td>
-        <td>${escapeHtml(p.cat)}</td>
-        <td>${peso(p.price)}</td>
-        <td>${p.stock}</td>
-        <td>${p.tag ? `<span class="tag-pill">${escapeHtml(p.tag)}</span>` : "—"}</td>
-        <td class="admin-actions">
-          <button class="btn btn-outline btn-sm" data-admin="edit" data-id="${escapeAttr(p.id)}">Edit</button>
-          <button class="btn btn-sm btn-danger" data-admin="del" data-id="${escapeAttr(p.id)}">Delete</button>
-        </td>
-      </tr>
-    `).join("");
-
-    tbody.querySelectorAll('[data-admin="edit"]').forEach(b => {
-      b.onclick = () => {
-        const row = data.find(r => r.id === b.dataset.id);
-        if (!row) return;
-        fillForm(row);
-        form.scrollIntoView({ behavior: "smooth", block: "start" });
-      };
-    });
-    tbody.querySelectorAll('[data-admin="del"]').forEach(b => {
-      b.onclick = () => {
-        if (!confirm(`Delete "${b.dataset.id}"? This cannot be undone.`)) return;
-        const next = PRODUCTS.filter(p => p.id !== b.dataset.id);
-        persistProducts(next);
-        toast("Product deleted", "ok");
-        refreshTable();
-        renderFeatured();
-        renderProducts();
-      };
-    });
-  }
-
-  form.onsubmit = (e) => {
-    e.preventDefault();
-    setMsg("admin-form-message", "Saving...");
-    const originalId = $("#p-original-id").value;
-    const editing = !!originalId;
-    const payload = {
-      id: idInput.value.trim(),
-      name: $("#p-name").value.trim(),
-      price: Number($("#p-price").value),
-      stock: parseInt($("#p-stock").value, 10) || 0,
-      cat: $("#p-cat").value,
-      tag: $("#p-tag").value.trim() || "",
-      img: $("#p-img").value.trim() || "",
-      desc: $("#p-desc").value.trim() || "",
-      details: $("#p-details").value.trim() || "",
-      sort_order: parseInt($("#p-sort").value, 10) || 0,
-    };
-    if (!payload.id || !/^[a-z0-9_\-]+$/.test(payload.id))
-      return setMsg("admin-form-message", "Product ID must be lowercase letters, numbers, hyphens or underscores.");
-    if (!payload.name) return setMsg("admin-form-message", "Name is required.");
-    if (!(payload.price >= 0)) return setMsg("admin-form-message", "Price must be a non-negative number.");
-
-    const list = PRODUCTS.map(p => ({ ...p, img: stripBase(p.img) }));
-    if (editing) {
-      const idx = list.findIndex(p => p.id === originalId);
-      if (idx < 0) return setMsg("admin-form-message", "Product not found.");
-      list[idx] = payload;
-    } else {
-      if (list.some(p => p.id === payload.id))
-        return setMsg("admin-form-message", "A product with that ID already exists.");
-      list.push(payload);
-    }
-    persistProducts(list);
-
-    setMsg("admin-form-message", editing ? "Product updated." : "Product added.", true);
-    fillForm(null);
-    refreshTable();
-    renderFeatured();
-    renderProducts();
-  };
-
-  refreshTable();
-}
-
-/* escapeHtml / escapeAttr are defined once at the top of this file
-   (in the HELPERS section). Don't redefine them here. */
 
 /* =========================================================
    GLOBAL EVENT WIRING
@@ -1533,13 +1327,9 @@ function bindOrders() {
 function renderOrderList(host, u) {
   const data = readJSON(LS.ORDERS(u.id), []);
   if (!data.length) {
-    host.innerHTML = `
-      <div class="empty">
-        <div class="icon">📦</div>
-        <h2>No orders yet</h2>
-        <p class="muted">When you place your first order, it'll show up here.</p>
-        <a class="btn" href="products.html">Start Shopping</a>
-      </div>`;
+    host.innerHTML = emptyState("📦", "No orders yet",
+      "When you place your first order, it'll show up here.",
+      ["Start Shopping", "products.html"]);
     return;
   }
   host.innerHTML = `
@@ -1569,13 +1359,9 @@ function renderOrderList(host, u) {
 function renderOrderDetail(host, orderId, isNew, u) {
   const order = readJSON(LS.ORDERS(u.id), []).find(o => o.id === orderId);
   if (!order) {
-    host.innerHTML = `
-      <div class="empty">
-        <div class="icon">🔍</div>
-        <h2>Order not found</h2>
-        <p class="muted">We couldn't find that order on your account.</p>
-        <a class="btn" href="orders.html">Back to My Orders</a>
-      </div>`;
+    host.innerHTML = emptyState("🔍", "Order not found",
+      "We couldn't find that order on your account.",
+      ["Back to My Orders", "orders.html"]);
     return;
   }
   const items = order.items || [];
@@ -1647,7 +1433,6 @@ function renderOrderDetail(host, orderId, isNew, u) {
    INIT
    ========================================================= */
 document.addEventListener("DOMContentLoaded", () => {
-  seedAdmin();
   buildHeader();
   buildFooter();
   buildOverlays();
@@ -1659,12 +1444,10 @@ document.addEventListener("DOMContentLoaded", () => {
   wireEvents();
   bindRegister();
   bindLogin();
-  bindResetPassword();
   bindChangePassword();
   bindPasswordToggles();
   loadAccount();
   updateAuthUI();
-  bindAdmin();
   bindCheckout();
   bindOrders();
   bindAddresses();
