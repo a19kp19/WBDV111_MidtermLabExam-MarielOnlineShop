@@ -1,10 +1,39 @@
-/*   Mariel Store — STATIC version (no backend)
-   - Header & footer injected
-   - Cart, wishlist, orders, addresses, accounts persist in
-     the browser via localStorage
-   - "Auth" is a local demo (passwords stored in localStorage) */
+/* =========================================================
+   Mariel Store — STATIC version (no backend)
+   ---------------------------------------------------------
+   What this file does, top to bottom (search the headers):
 
-/* ---------- helpers ---------- */
+     1.  HELPERS              $, $$, peso, uid, escapeHtml, setVisibleState
+     2.  LOCAL STORAGE STORE  LS keys + readJSON / writeJSON
+     3.  AUTH HELPERS         getUsers, currentUser, signIn/Out
+     4.  PAGE & NAV           buildHeader / buildFooter / buildOverlays
+     5.  TOAST                tiny notification
+     6.  CART                 add / change / remove / render
+     7.  WISHLIST             toggleWish
+     8.  PRODUCTS             DEFAULT_PRODUCTS, productCard, render*
+     9.  PRODUCT DETAIL       renderProductDetail
+     10. REVEAL ON SCROLL     setupReveal
+     11. AUTH FORMS           bindRegister / bindLogin / etc.
+     12. ACCOUNT              loadAccount + bindAccountEdit
+     13. ADMIN                bindAdmin (CRUD products)
+     14. GLOBAL EVENT WIRING  wireEvents — single delegated listener
+     15. ADDRESSES            bindAddresses (CRUD saved addresses)
+     16. CHECKOUT             bindCheckout (PH cascading dropdowns)
+     17. ORDERS               bindOrders + renderOrderList/Detail
+     18. INIT                 DOMContentLoaded → calls every binder
+
+   Conventions:
+   - All persistence goes through readJSON/writeJSON + LS.* keys.
+   - All DOM lookups go through $ / $$ helpers.
+   - User-controlled strings rendered into HTML go through
+     escapeHtml() to prevent broken markup / XSS.
+   - "Auth" is a local demo (passwords stored in localStorage)
+     => fine for a school project, NOT real security.
+   ========================================================= */
+
+/* =========================================================
+   1. HELPERS
+   ========================================================= */
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const onPagesPath = () => location.pathname.includes("/pages/");
@@ -13,6 +42,23 @@ const pagePath = (file) => onPagesPath() ? file : `pages/${file}`;
 const home = () => onPagesPath() ? "../index.html" : "index.html";
 const peso = (n) => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const uid  = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+/* Show exactly one of several "state" elements and hide the rest.
+   Replaces the loading/denied/empty/ok pattern repeated by admin,
+   checkout and orders pages. Pass a map of { stateName: element-or-id }
+   then call with the active state name. Missing entries are skipped. */
+function setVisibleState(map, active) {
+  for (const [name, target] of Object.entries(map)) {
+    const el = typeof target === "string" ? document.getElementById(target) : target;
+    el?.classList.toggle("hidden", name !== active);
+  }
+}
+
+/* Escape HTML for safe interpolation into innerHTML / attributes. */
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+const escapeAttr = escapeHtml; // alias kept for readability at call sites
 
 /* =========================================================
    LOCAL STORAGE STORE
@@ -30,7 +76,7 @@ const LS = {
 const readJSON  = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
 const writeJSON = (k, v)  => localStorage.setItem(k, JSON.stringify(v));
 
-/* Seed a default admin account on first run so the Admin page is reachable */
+/* default admin account */
 function seedAdmin() {
   const users = readJSON(LS.USERS, []);
   if (users.some(u => u.email === "admin@marielstore.com")) return;
@@ -422,9 +468,9 @@ function renderProductDetail() {
   }
 
   const wished = getWish().includes(p.id);
-  const stockColor = p.stock > 0 ? "var(--ok,#16a34a)" : "var(--brand)";
   const stockText = p.stock > 0 ? `${p.stock} in stock` : "Out of stock";
-  const stockLine = `<span style="display:inline-block;margin-left:10px;padding:3px 10px;border-radius:999px;background:${stockColor};color:#fff;font-size:.75rem;font-weight:600;vertical-align:middle">${stockText}</span>`;
+  const stockClass = p.stock > 0 ? "stock-pill in" : "stock-pill out";
+  const stockLine = `<span class="${stockClass}">${stockText}</span>`;
 
   host.innerHTML = `
     <p class="crumbs"><a href="${pagePath("products.html")}">Products</a> / <span>${escapeHtml(p.name)}</span></p>
@@ -755,18 +801,12 @@ function bindAdmin() {
   const app = $("#admin-app");
   if (!app) return;
 
-  const loading = $("#admin-loading");
-  const denied = $("#admin-denied");
-  const showState = (state) => {
-    loading?.classList.toggle("hidden", state !== "loading");
-    denied?.classList.toggle("hidden", state !== "denied");
-    app.classList.toggle("hidden", state !== "ok");
-  };
+  const adminStates = { loading: "admin-loading", denied: "admin-denied", ok: app };
 
   const u = currentUser();
   if (!u) { location.href = pagePath("login.html"); return; }
-  if (!u.is_admin) { showState("denied"); return; }
-  showState("ok");
+  if (!u.is_admin) { setVisibleState(adminStates, "denied"); return; }
+  setVisibleState(adminStates, "ok");
 
   const form = $("#admin-product-form");
   const titleEl = $("#admin-form-title");
@@ -886,10 +926,8 @@ function bindAdmin() {
   refreshTable();
 }
 
-function escapeHtml(s) {
-  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-}
-function escapeAttr(s) { return escapeHtml(s); }
+/* escapeHtml / escapeAttr are defined once at the top of this file
+   (in the HELPERS section). Don't redefine them here. */
 
 /* =========================================================
    GLOBAL EVENT WIRING
@@ -1028,7 +1066,7 @@ function bindAddresses() {
           <div class="muted" style="font-size:.88rem">${escapeHtml(a.phone)}</div>
           <div style="margin-top:6px">${escapeHtml(a.address_line)}</div>
           <div class="muted" style="font-size:.88rem">${escapeHtml(a.city)}, ${escapeHtml(a.province)}${a.postal_code ? " · " + escapeHtml(a.postal_code) : ""}</div>
-          <div class="muted" style="font-size:.85rem">${escapeHtml(REGION_LABELS[a.region] || a.region)}</div>
+          <div class="muted" style="font-size:.85rem">${escapeHtml(getRegionLabel(a.region))}</div>
         </div>
         <div class="addr-card-actions">
           ${a.is_default ? "" : `<button class="btn btn-outline btn-sm" data-addr="default" data-id="${a.id}">Set Default</button>`}
@@ -1105,28 +1143,49 @@ function bindAddresses() {
 /* =========================================================
    CHECKOUT PAGE
    ========================================================= */
-const SHIPPING_FEES  = { ncr: 100, luzon: 180, visayas: 220, mindanao: 250 };
-const REGION_LABELS  = { ncr: "Metro Manila (NCR)", luzon: "Luzon (outside NCR)", visayas: "Visayas", mindanao: "Mindanao" };
+const SHIPPING_FEES = { ncr: 100, luzon: 180, visayas: 220, mindanao: 250 };
+
+/* Legacy fallback used when ph-address.js is NOT loaded on a page
+   (it only ships with checkout.html — accounts/orders also display
+   region info, so they need a sensible default). */
+const LEGACY_REGIONS = {
+  ncr:      { label: "Metro Manila (NCR)",   shipping: "ncr" },
+  luzon:    { label: "Luzon (outside NCR)",  shipping: "luzon" },
+  visayas:  { label: "Visayas",              shipping: "visayas" },
+  mindanao: { label: "Mindanao",             shipping: "mindanao" },
+};
+
+/* Look up a region by key. Returns { label, shipping } or null.
+   Single source of truth used by getRegionLabel + getShippingFee. */
+function findRegion(key) {
+  if (typeof PH_REGIONS !== "undefined") {
+    const r = PH_REGIONS.find(x => x.key === key);
+    if (r) return r;
+  }
+  return LEGACY_REGIONS[key] || null;
+}
+
+function getRegionLabel(key) {
+  return findRegion(key)?.label || key;
+}
+function getShippingFee(regionKey) {
+  const tier = findRegion(regionKey)?.shipping;
+  return tier ? SHIPPING_FEES[tier] : null;
+}
 const PAYMENT_LABELS = { cod: "Cash on Delivery", online: "Online Payment", installment: "Installment" };
 
 function bindCheckout() {
   const app = $("#checkout-app");
   if (!app) return;
 
-  const loading = $("#checkout-loading");
-  const empty = $("#checkout-empty");
-  const showState = (s) => {
-    loading?.classList.toggle("hidden", s !== "loading");
-    empty?.classList.toggle("hidden", s !== "empty");
-    app.classList.toggle("hidden", s !== "ok");
-  };
+  const checkoutStates = { loading: "checkout-loading", empty: "checkout-empty", ok: app };
 
   const u = currentUser();
   if (!u) { location.href = pagePath("login.html"); return; }
 
   const cart = getCart();
-  if (!cart.length) { showState("empty"); return; }
-  showState("ok");
+  if (!cart.length) { setVisibleState(checkoutStates, "empty"); return; }
+  setVisibleState(checkoutStates, "ok");
 
   $("#co-name").value  = u.full_name || "";
   $("#co-phone").value = u.phone || "";
@@ -1135,14 +1194,71 @@ function bindCheckout() {
   const savedAddresses = fetchUserAddresses();
   let activePickedAddrId = null;
 
+  // --- Philippine cascading address helpers ---
+  function buildRegionDropdown() {
+    const sel = $("#co-region");
+    PH_REGIONS.forEach(r => {
+      const opt = document.createElement("option");
+      opt.value = r.key;
+      opt.textContent = r.label;
+      sel.appendChild(opt);
+    });
+  }
+
+  function buildProvinceDropdown(regionKey) {
+    const sel = $("#co-province");
+    sel.innerHTML = '<option value="">Select province…</option>';
+    const provinces = PH_PROVINCES[regionKey] || [];
+    provinces.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.key;
+      opt.textContent = p.label;
+      sel.appendChild(opt);
+    });
+    sel.disabled = !provinces.length;
+    // Reset city when province changes
+    const citySel = $("#co-city");
+    citySel.innerHTML = '<option value="">Select city / municipality…</option>';
+    citySel.disabled = true;
+    $("#co-postal").value = "";
+  }
+
+  function buildCityDropdown(provinceKey) {
+    const sel = $("#co-city");
+    sel.innerHTML = '<option value="">Select city / municipality…</option>';
+    const cities = PH_CITIES[provinceKey] || [];
+    cities.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.name;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+    sel.disabled = !cities.length;
+    $("#co-postal").value = "";
+  }
+
+  buildRegionDropdown();
+
   function fillFromAddress(a) {
     $("#co-name").value     = a.full_name;
     $("#co-phone").value    = a.phone;
     $("#co-address").value  = a.address_line;
-    $("#co-city").value     = a.city;
-    $("#co-province").value = a.province;
-    $("#co-region").value   = a.region;
-    $("#co-postal").value   = a.postal_code || "";
+    // Cascade: region → province → city → postal
+    const regionKey   = a.region   || "";
+    const provinceKey = a.province || "";
+    const cityName    = a.city     || "";
+    $("#co-region").value = regionKey;
+    buildProvinceDropdown(regionKey);
+    if (provinceKey) {
+      $("#co-province").value = provinceKey;
+      buildCityDropdown(provinceKey);
+      if (cityName) {
+        $("#co-city").value = cityName;
+        const cities = PH_CITIES[provinceKey] || [];
+        const cityData = cities.find(c => c.name === cityName);
+        $("#co-postal").value = cityData ? cityData.postal : (a.postal_code || "");
+      }
+    }
     activePickedAddrId = a.id;
     recomputeTotals();
     refreshSaveCheckbox();
@@ -1182,7 +1298,9 @@ function bindCheckout() {
         c.classList.add("active");
         if (c.dataset.new) {
           activePickedAddrId = null;
-          ["co-address","co-city","co-province","co-region","co-postal"].forEach(id => $("#" + id).value = "");
+          ["co-address","co-region","co-postal"].forEach(id => $("#" + id).value = "");
+          buildProvinceDropdown("");
+          buildCityDropdown("");
           refreshSaveCheckbox();
           recomputeTotals();
           return;
@@ -1214,8 +1332,8 @@ function bindCheckout() {
   function recomputeTotals() {
     const list = getCart();
     const subtotal = list.reduce((s, i) => s + i.price * i.qty, 0);
-    const region = $("#co-region").value;
-    const shipping = SHIPPING_FEES[region];
+    const regionKey = $("#co-region").value;
+    const shipping = getShippingFee(regionKey);
     $("#co-subtotal").textContent = peso(subtotal);
     $("#co-shipping").textContent = shipping == null ? "—" : peso(shipping);
     $("#co-total").textContent = peso(subtotal + (shipping || 0));
@@ -1223,7 +1341,22 @@ function bindCheckout() {
 
   renderItems();
   recomputeTotals();
-  $("#co-region").addEventListener("change", recomputeTotals);
+
+  // Cascading dropdown event listeners
+  $("#co-region").addEventListener("change", () => {
+    buildProvinceDropdown($("#co-region").value);
+    recomputeTotals();
+  });
+  $("#co-province").addEventListener("change", () => {
+    buildCityDropdown($("#co-province").value);
+  });
+  $("#co-city").addEventListener("change", () => {
+    const provinceKey = $("#co-province").value;
+    const cityName = $("#co-city").value;
+    const cities = PH_CITIES[provinceKey] || [];
+    const cityData = cities.find(c => c.name === cityName);
+    $("#co-postal").value = cityData ? cityData.postal : "";
+  });
 
   $("#checkout-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1234,12 +1367,14 @@ function bindCheckout() {
 
     const region = $("#co-region").value;
     if (!region) return setMsg("checkout-message", "Please select your region.");
-    const shipping_fee = SHIPPING_FEES[region];
+    if (!$("#co-province").value) return setMsg("checkout-message", "Please select your province.");
+    if (!$("#co-city").value) return setMsg("checkout-message", "Please select your city / municipality.");
+    const shipping_fee = getShippingFee(region);
     const subtotal = list.reduce((s, i) => s + i.price * i.qty, 0);
     const total = subtotal + shipping_fee;
     const payment_method = document.querySelector('input[name="co-pay"]:checked')?.value || "cod";
 
-    const required = ["co-name","co-phone","co-address","co-city","co-province"];
+    const required = ["co-name","co-phone","co-address"];
     for (const id of required) {
       if (!$("#" + id).value.trim()) {
         return setMsg("checkout-message", "Please fill in all required fields.");
@@ -1264,7 +1399,12 @@ function bindCheckout() {
       email:        $("#co-email").value.trim(),
       address_line: $("#co-address").value.trim(),
       city:         $("#co-city").value.trim(),
-      province:     $("#co-province").value.trim(),
+      province:     (() => {
+        const pKey = $("#co-province").value;
+        const rKey = $("#co-region").value;
+        const prov = (PH_PROVINCES[rKey] || []).find(p => p.key === pKey);
+        return prov ? prov.label : pKey;
+      })(),
       region,
       postal_code:  $("#co-postal").value.trim(),
       notes:        $("#co-notes").value.trim(),
@@ -1298,7 +1438,7 @@ function bindCheckout() {
         phone:        order.phone,
         address_line: order.address_line,
         city:         order.city,
-        province:     order.province,
+        province:     $("#co-province").value,
         region:       order.region,
         postal_code:  order.postal_code || "",
         is_default:   all.length === 0,
@@ -1325,18 +1465,16 @@ function statusPill(status) {
 
 function bindOrders() {
   const host = $("#orders-content");
-  const loading = $("#orders-loading");
   if (!host) return;
 
   const u = currentUser();
   if (!u) { location.href = pagePath("login.html"); return; }
 
+  setVisibleState({ loading: "orders-loading", ok: host }, "ok");
+
   const params = new URLSearchParams(location.search);
   const orderId = params.get("id");
   const isNew = params.get("new") === "1";
-
-  loading?.classList.add("hidden");
-  host.classList.remove("hidden");
 
   if (orderId) return renderOrderDetail(host, orderId, isNew, u);
   return renderOrderList(host, u);
@@ -1441,7 +1579,7 @@ function renderOrderDetail(host, orderId, isNew, u) {
         <p class="muted" style="margin:10px 0 0">
           ${escapeHtml(order.address_line)}<br>
           ${escapeHtml(order.city)}, ${escapeHtml(order.province)}<br>
-          ${escapeHtml(REGION_LABELS[order.region] || order.region)}${order.postal_code ? ` · ${escapeHtml(order.postal_code)}` : ""}
+          ${escapeHtml(getRegionLabel(order.region))}${order.postal_code ? ` · ${escapeHtml(order.postal_code)}` : ""}
         </p>
         ${order.notes ? `<p class="muted" style="margin-top:10px"><strong>Notes:</strong> ${escapeHtml(order.notes)}</p>` : ""}
 
