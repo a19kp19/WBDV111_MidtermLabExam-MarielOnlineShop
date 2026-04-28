@@ -615,6 +615,20 @@ em { color: inherit; font-style: normal; }
 .mobile-nav a:hover, .mobile-nav a.active {
   background: var(--brand-soft); color: var(--brand);
 }
+.mobile-nav-auth {
+  margin-top: auto; padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.mobile-nav-auth .btn { padding: 12px 14px; }
+.mobile-nav-auth .btn:hover { background: var(--brand); color: #fff; }
+.mobile-nav-auth #mobile-user-menu { display: flex; flex-direction: column; gap: 4px; }
+.mobile-nav-auth #mobile-logout-btn {
+  text-align: left; padding: 12px 14px;
+  border-radius: var(--radius-sm); font-weight: 600;
+  color: var(--brand); background: transparent; border: 0; cursor: pointer;
+}
+.mobile-nav-auth #mobile-logout-btn:hover { background: var(--brand-soft); }
 
 /* =========================================================
    Toast
