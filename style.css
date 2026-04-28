@@ -667,7 +667,9 @@ em { color: inherit; font-style: normal; }
    Responsive
    ========================================================= */
 @media (max-width: 880px) {
-  .nav-links, .nav-actions .auth-text { display: none; }
+  .nav-links,
+  .nav-actions .auth-text,
+  .nav-actions .user-menu { display: none; }
   .menu-toggle {
     display: inline-grid; place-items: center;
     width: 40px; height: 40px; border-radius: 999px;
