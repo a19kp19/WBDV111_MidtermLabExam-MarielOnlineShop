@@ -37,8 +37,10 @@ const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const onPagesPath = () => location.pathname.includes("/pages/");
 const base = onPagesPath() ? "../" : "";
-const pagePath = (file) => onPagesPath() ? file : `pages/${file}`;
-const home = () => onPagesPath() ? "../index.html" : "index.html";
+const _useExt = location.protocol === "file:" || /\.html?$/i.test(location.pathname);
+const _ext = (file) => _useExt ? file : file.replace(/\.html$/, "");
+const pagePath = (file) => onPagesPath() ? _ext(file) : `pages/${_ext(file)}`;
+const home = () => onPagesPath() ? `../${_ext("index.html")}` : _ext("index.html");
 const peso = (n) => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const uid  = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
