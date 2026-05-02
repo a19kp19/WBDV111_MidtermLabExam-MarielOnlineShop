@@ -1,32 +1,32 @@
 /* =========================================================
    Mariel Store — STATIC version (no backend)
    ---------------------------------------------------------
-   What this file does, top to bottom (search the headers):
+   Sections (search the headers to jump):
 
      1.  HELPERS              $, $$, peso, uid, escapeHtml, setVisibleState
-     2.  LOCAL STORAGE STORE  LS keys + readJSON / writeJSON
-     3.  AUTH HELPERS         getUsers, currentUser, signIn/Out
-     4.  PAGE & NAV           buildHeader / buildFooter / buildOverlays
-     5.  TOAST                tiny notification
-     6.  CART                 add / change / remove / render
-     7.  WISHLIST             toggleWish
+     2.  CONSTANTS & CONFIG   LS keys, shipping fees, labels, limits
+     3.  LOCAL STORAGE        readJSON / writeJSON
+     4.  AUTH HELPERS         getUsers, currentUser, signIn / signOut
+     5.  PAGE & NAV           buildHeader / buildFooter / buildOverlays
+     6.  TOAST                tiny notification
+     7.  CART                 add / change / remove / render
      8.  PRODUCTS             DEFAULT_PRODUCTS, productCard, render*
-     9.  PRODUCT DETAIL       renderProductDetail
+     9.  PRODUCT DETAIL       renderProductDetail        — product.html
      10. REVEAL ON SCROLL     setupReveal
-     11. AUTH FORMS           bindRegister / bindLogin / etc.
-     12. ACCOUNT              loadAccount + bindAccountEdit
+     11. AUTH FORMS           bindRegister / bindLogin   — login.html / register.html
+     12. ACCOUNT              loadAccount / bindAccountEdit — account.html
      13. GLOBAL EVENT WIRING  wireEvents — single delegated listener
-     14. ADDRESSES            bindAddresses (CRUD saved addresses)
-     15. CHECKOUT             bindCheckout (PH cascading dropdowns)
-     16. ORDERS               bindOrders + renderOrderList/Detail
+     14. ADDRESSES            bindAddresses (CRUD)       — account.html
+     15. CHECKOUT             bindCheckout               — checkout.html
+     16. ORDERS               bindOrders / render*       — orders.html
      17. INIT                 DOMContentLoaded → calls every binder
 
    Conventions:
    - All persistence goes through readJSON/writeJSON + LS.* keys.
    - All DOM lookups go through $ / $$ helpers.
-   - User-controlled strings rendered into HTML go through
+   - User-controlled strings rendered into innerHTML go through
      escapeHtml() to prevent broken markup / XSS.
-   - "Auth" is a local demo (passwords stored in localStorage)
+   - "Auth" is a local demo (passwords in localStorage)
      => fine for a school project, NOT real security.
    ========================================================= */
 
@@ -38,16 +38,15 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const onPagesPath = () => location.pathname.includes("/pages/");
 const base = onPagesPath() ? "../" : "";
 const _useExt = location.protocol === "file:" || /\.html?$/i.test(location.pathname);
-const _ext = (file) => _useExt ? file : file.replace(/\.html$/, "");
+const _ext    = (file) => _useExt ? file : file.replace(/\.html$/, "");
 const pagePath = (file) => onPagesPath() ? _ext(file) : `pages/${_ext(file)}`;
-const home = () => onPagesPath() ? `../${_ext("index.html")}` : _ext("index.html");
+const home     = () => onPagesPath() ? `../${_ext("index.html")}` : _ext("index.html");
 const peso = (n) => "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const uid  = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 /* Show exactly one of several "state" elements and hide the rest.
-   Replaces the loading/empty/ok pattern repeated by checkout and
-   orders pages. Pass a map of { stateName: element-or-id } then call
-   with the active state name. Missing entries are skipped. */
+   Pass a map of { stateName: element-or-id } then call with the
+   active state name. Missing/null entries are skipped. */
 function setVisibleState(map, active) {
   for (const [name, target] of Object.entries(map)) {
     const el = typeof target === "string" ? document.getElementById(target) : target;
@@ -55,41 +54,94 @@ function setVisibleState(map, active) {
   }
 }
 
-/* Empty / not-found state markup. Pass icon + optional title, text,
-   button [label, href], and an optional extra wrapper attribute string. */
+/* Empty / not-found state markup.
+   Pass icon + optional title, text, button [label, href], and an
+   optional extra wrapper attribute string. */
 const emptyState = (icon, title, text, btn, attr = "") => `
     <div class="empty"${attr}>
       <div class="icon">${icon}</div>
       ${title ? `<h2>${title}</h2>` : ""}
-      ${text ? `<p${title ? ` class="muted"` : ""}>${text}</p>` : ""}
-      ${btn ? `<a class="btn" href="${btn[1]}">${btn[0]}</a>` : ""}
+      ${text  ? `<p${title ? ` class="muted"` : ""}>${text}</p>` : ""}
+      ${btn   ? `<a class="btn" href="${btn[1]}">${btn[0]}</a>` : ""}
     </div>`;
 
 /* Escape HTML for safe interpolation into innerHTML / attributes. */
 function escapeHtml(s) {
-  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  return String(s ?? "").replace(/[&<>"']/g, c => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
 }
 const escapeAttr = escapeHtml; // alias kept for readability at call sites
 
+/* Populate a <select> element with <option> nodes.
+   Clears existing options first; optionally prepends a placeholder. */
+function buildSelectOptions(sel, items, valueKey, labelKey, placeholder) {
+  sel.innerHTML = placeholder ? `<option value="">${placeholder}</option>` : "";
+  items.forEach(item => {
+    const opt = document.createElement("option");
+    opt.value       = item[valueKey];
+    opt.textContent = item[labelKey];
+    sel.appendChild(opt);
+  });
+}
+
 /* =========================================================
-   LOCAL STORAGE STORE
+   2. CONSTANTS & CONFIG
    ========================================================= */
+
+/* LocalStorage key registry */
 const LS = {
-  USERS:   "mariel.users",
-  SESSION: "mariel.session",
-  ADDR:    (uid) => `mariel.addresses.${uid}`,
-  ORDERS:  (uid) => `mariel.orders.${uid}`,
-  PRODUCTS:"mariel.products",
-  CART:    "mariel.cart",
-  WISH:    "mariel.wish",
+  USERS:    "mariel.users",
+  SESSION:  "mariel.session",
+  ADDR:     (uid) => `mariel.addresses.${uid}`,
+  ORDERS:   (uid) => `mariel.orders.${uid}`,
+  PRODUCTS: "mariel.products",
+  CART:     "mariel.cart",
 };
 
+/* Shipping fee tiers keyed by region shipping-tier name */
+const SHIPPING_FEES = { ncr: 100, luzon: 180, visayas: 220, mindanao: 250 };
+
+/* Fallback region map used when ph-address.js is NOT loaded on a page
+   (checkout.html loads ph-address.js; other pages that display region
+   info — account, orders — rely on this smaller lookup table). */
+const LEGACY_REGIONS = {
+  ncr:      { label: "Metro Manila (NCR)",  shipping: "ncr"      },
+  luzon:    { label: "Luzon (outside NCR)", shipping: "luzon"    },
+  visayas:  { label: "Visayas",             shipping: "visayas"  },
+  mindanao: { label: "Mindanao",            shipping: "mindanao" },
+};
+
+/* Human-readable payment method labels */
+const PAYMENT_LABELS = {
+  cod:         "Cash on Delivery",
+  online:      "Online Payment",
+  installment: "Installment",
+};
+
+/* Maximum saved addresses per user */
+const ADDR_LIMIT = 3;
+
+/* Human-readable order status labels */
+const STATUS_LABELS = {
+  pending:   "Pending",
+  packed:    "Packed",
+  shipped:   "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
+
+/* =========================================================
+   3. LOCAL STORAGE
+   ========================================================= */
 const readJSON  = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
 const writeJSON = (k, v)  => localStorage.setItem(k, JSON.stringify(v));
 
-/* Auth helpers */
-const getUsers   = () => readJSON(LS.USERS, []);
-const setUsers   = (a) => writeJSON(LS.USERS, a);
+/* =========================================================
+   4. AUTH HELPERS
+   ========================================================= */
+const getUsers      = () => readJSON(LS.USERS, []);
+const setUsers      = (a) => writeJSON(LS.USERS, a);
 const currentUserId = () => readJSON(LS.SESSION, null)?.userId || null;
 const currentUser   = () => {
   const id = currentUserId();
@@ -100,7 +152,7 @@ const signOut = () => localStorage.removeItem(LS.SESSION);
 const signIn  = (id) => writeJSON(LS.SESSION, { userId: id });
 
 /* =========================================================
-   PAGE & NAV
+   5. PAGE & NAV
    ========================================================= */
 const PAGE_KEY = document.body.dataset.page || "home";
 
@@ -248,7 +300,7 @@ function buildOverlays() {
 }
 
 /* =========================================================
-   TOAST
+   6. TOAST
    ========================================================= */
 function toast(msg, type = "") {
   const stack = $("#toast-stack"); if (!stack) return alert(msg);
@@ -260,17 +312,17 @@ function toast(msg, type = "") {
 }
 
 /* =========================================================
-   CART (localStorage)
+   7. CART (localStorage)
    ========================================================= */
 const getCart = () => readJSON(LS.CART, []);
 const setCart = (c) => { writeJSON(LS.CART, c); renderCart(); };
 
 function addToCart(item) {
-  const cart = getCart();
-  const found = cart.find(i => i.id === item.id);
+  const cart    = getCart();
+  const found   = cart.find(i => i.id === item.id);
   const product = PRODUCTS.find(p => p.id === item.id);
-  const max = product?.stock ?? Infinity;
-  const have = found?.qty || 0;
+  const max     = product?.stock ?? Infinity;
+  const have    = found?.qty || 0;
   if (have + 1 > max) { toast(`Only ${max} available`, "bad"); return false; }
   if (found) found.qty += 1;
   else cart.push({ ...item, qty: 1 });
@@ -278,21 +330,23 @@ function addToCart(item) {
   toast("Added to cart", "ok");
   return true;
 }
+
 function changeQty(id, delta) {
-  const cart = getCart();
-  const i = cart.find(x => x.id === id); if (!i) return;
+  const cart    = getCart();
+  const i       = cart.find(x => x.id === id); if (!i) return;
   const product = PRODUCTS.find(p => p.id === id);
-  const max = product?.stock ?? Infinity;
+  const max     = product?.stock ?? Infinity;
   i.qty = Math.max(1, Math.min(max, i.qty + delta));
   setCart(cart);
 }
+
 function removeFromCart(id) { setCart(getCart().filter(i => i.id !== id)); }
 
 function renderCart() {
-  const list = $("#cart-items");
+  const list  = $("#cart-items");
   const count = $("#cart-count");
   const total = $("#cart-total");
-  const cart = getCart();
+  const cart  = getCart();
   if (count) count.textContent = cart.reduce((s, i) => s + i.qty, 0);
   if (!list || !total) return;
   if (!cart.length) {
@@ -319,28 +373,13 @@ function renderCart() {
   total.textContent = peso(cart.reduce((s, i) => s + i.price * i.qty, 0));
 }
 
-function openCart() { $("#scrim")?.classList.add("open"); $("#cart-drawer")?.classList.add("open"); }
+function openCart()  { $("#scrim")?.classList.add("open"); $("#cart-drawer")?.classList.add("open"); }
 function closeCart() { $("#scrim")?.classList.remove("open"); $("#cart-drawer")?.classList.remove("open"); closeMenu(); }
-function openMenu() { $("#scrim")?.classList.add("open"); $("#mobile-nav")?.classList.add("open"); }
+function openMenu()  { $("#scrim")?.classList.add("open"); $("#mobile-nav")?.classList.add("open"); }
 function closeMenu() { $("#mobile-nav")?.classList.remove("open"); }
 
 /* =========================================================
-   WISHLIST
-   ========================================================= */
-const getWish = () => readJSON(LS.WISH, []);
-function toggleWish(id) {
-  const list = getWish();
-  const idx = list.indexOf(id);
-  if (idx >= 0) { list.splice(idx, 1); toast("Removed from wishlist"); }
-  else { list.push(id); toast("Added to wishlist", "ok"); }
-  writeJSON(LS.WISH, list);
-  renderProducts();
-  renderFeatured();
-  renderProductDetail();
-}
-
-/* =========================================================
-   PRODUCTS (in-memory + localStorage stock updates)
+   8. PRODUCTS (in-memory + localStorage stock updates)
    ========================================================= */
 function resolveImg(src) {
   if (!src) return base + "images/logo.png";
@@ -362,7 +401,7 @@ let PRODUCTS = loadProductsFromStore();
 
 function loadProductsFromStore() {
   const stored = readJSON(LS.PRODUCTS, null);
-  const src = stored && Array.isArray(stored) && stored.length ? stored : DEFAULT_PRODUCTS;
+  const src    = stored && Array.isArray(stored) && stored.length ? stored : DEFAULT_PRODUCTS;
   return src
     .slice()
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -370,10 +409,11 @@ function loadProductsFromStore() {
 }
 
 function persistProducts(list) {
-  // Store with raw image paths (no resolved base) so other pages resolve correctly
+  /* Store raw image paths (no resolved base) so other pages can resolve correctly */
   writeJSON(LS.PRODUCTS, list.map(p => ({ ...p, img: stripBase(p.img) })));
   PRODUCTS = loadProductsFromStore();
 }
+
 function stripBase(src) {
   if (!src) return src;
   if (base && src.startsWith(base)) return src.slice(base.length);
@@ -389,7 +429,6 @@ const CATEGORIES = [
 ];
 
 function productCard(p) {
-  const wished = getWish().includes(p.id);
   const link = `${pagePath("product.html")}?id=${p.id}`;
   return `
     <article class="product">
@@ -397,7 +436,6 @@ function productCard(p) {
         ${p.tag ? `<span class="tag">${p.tag}</span>` : ""}
         <img src="${p.img}" alt="${escapeHtml(p.name)}" loading="lazy">
       </a>
-      <button class="wish ${wished?"on":""}" data-id="${p.id}" aria-label="Wishlist">${wished?"♥":"♡"}</button>
       <div class="info">
         <span class="cat-label">${escapeHtml(p.cat)}</span>
         <h3><a href="${link}">${escapeHtml(p.name)}</a></h3>
@@ -411,6 +449,7 @@ function productCard(p) {
   `;
 }
 
+/* products.html — renders the filterable grid and toolbar */
 function renderProducts() {
   const grid = $("#products-grid");
   if (!grid) return;
@@ -426,11 +465,11 @@ function renderProducts() {
     `;
   }
 
-  const params = new URLSearchParams(location.search);
+  const params     = new URLSearchParams(location.search);
   const initialCat = params.get("cat") || "all";
   if (!grid.dataset.cat) grid.dataset.cat = initialCat;
   const search = ($("#product-search")?.value || "").toLowerCase().trim();
-  const cat = grid.dataset.cat;
+  const cat    = grid.dataset.cat;
 
   $$(".chip", $("#cat-chips")).forEach(b => b.classList.toggle("active", b.dataset.cat === cat));
 
@@ -444,6 +483,7 @@ function renderProducts() {
     : emptyState("🔍", "", "No products match your search.", null, ' style="grid-column:1/-1"');
 }
 
+/* index.html — renders the featured products strip */
 function renderFeatured() {
   const grid = $("#featured-grid");
   if (!grid) return;
@@ -451,14 +491,14 @@ function renderFeatured() {
 }
 
 /* =========================================================
-   PRODUCT DETAIL PAGE
+   9. PRODUCT DETAIL PAGE — product.html
    ========================================================= */
 function renderProductDetail() {
   const host = $("#product-detail");
   if (!host) return;
 
   const id = new URLSearchParams(location.search).get("id");
-  const p = PRODUCTS.find(x => x.id === id);
+  const p  = PRODUCTS.find(x => x.id === id);
 
   if (!p) {
     host.innerHTML = emptyState("😕", "Product not found",
@@ -467,10 +507,9 @@ function renderProductDetail() {
     return;
   }
 
-  const wished = getWish().includes(p.id);
-  const stockText = p.stock > 0 ? `${p.stock} in stock` : "Out of stock";
+  const stockText  = p.stock > 0 ? `${p.stock} in stock` : "Out of stock";
   const stockClass = p.stock > 0 ? "stock-pill in" : "stock-pill out";
-  const stockLine = `<span class="${stockClass}">${stockText}</span>`;
+  const stockLine  = `<span class="${stockClass}">${stockText}</span>`;
 
   host.innerHTML = `
     <p class="crumbs"><a href="${pagePath("products.html")}">Products</a> / <span>${escapeHtml(p.name)}</span></p>
@@ -497,7 +536,6 @@ function renderProductDetail() {
           <button class="btn add-cart" data-id="${p.id}" data-qty-from="#pd-qty-input" ${p.stock <= 0 ? "disabled" : ""}>
             ${p.stock <= 0 ? "Out of Stock" : "Add to Cart"}
           </button>
-          <button class="btn btn-outline wish ${wished?"on":""}" data-id="${p.id}">${wished ? "♥ Wishlisted" : "♡ Wishlist"}</button>
         </div>
       </div>
     </div>
@@ -512,28 +550,33 @@ function renderProductDetail() {
 }
 
 /* =========================================================
-   REVEAL ON SCROLL
+   10. REVEAL ON SCROLL
    ========================================================= */
 function setupReveal() {
   const els = $$(".reveal");
   if (!("IntersectionObserver" in window)) { els.forEach(e => e.classList.add("in")); return; }
   const io = new IntersectionObserver((entries) => {
-    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    });
   }, { threshold: 0.12 });
   els.forEach(e => io.observe(e));
 }
 
 /* =========================================================
-   AUTH (local — uses localStorage; demo only)
+   11. AUTH FORMS — login.html / register.html
    ========================================================= */
-const isStrong = (p) => p.length >= 6 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /[0-9]/.test(p) && /[^A-Za-z0-9]/.test(p);
-const isLettersOnly = (s) => /^[A-Za-z]+$/.test(s);
+const isStrong        = (p) => p.length >= 6 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /[0-9]/.test(p) && /[^A-Za-z0-9]/.test(p);
+const isLettersOnly   = (s) => /^[A-Za-z]+$/.test(s);
 const isLettersAndSpaces = (s) => /^[A-Za-z\s]+$/.test(s);
+
 const setMsg = (id, msg, ok = false) => {
   const el = document.getElementById(id);
   if (!el) return;
-  el.textContent = msg; el.classList.toggle("ok", ok);
+  el.textContent = msg;
+  el.classList.toggle("ok", ok);
 };
+
 const getDisplayName = (u) => u?.username || u?.full_name || (u?.email ? u.email.split("@")[0] : "Account");
 
 function bindPasswordToggles(root) {
@@ -541,8 +584,8 @@ function bindPasswordToggles(root) {
   const applyToggle = (btn, show) => {
     const input = document.getElementById(btn.dataset.toggle);
     if (!input) return;
-    input.type = show ? "text" : "password";
-    btn.textContent = show ? "Hide" : "Show";
+    input.type       = show ? "text" : "password";
+    btn.textContent  = show ? "Hide" : "Show";
     btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
   };
   scope.querySelectorAll(".password-toggle").forEach((btn) => {
@@ -551,7 +594,7 @@ function bindPasswordToggles(root) {
     btn.addEventListener("click", () => {
       const input = document.getElementById(btn.dataset.toggle);
       if (!input) return;
-      const show = input.type !== "text";
+      const show  = input.type !== "text";
       const group = btn.dataset.group;
       if (group) {
         document.querySelectorAll(`.password-toggle[data-group="${group}"]`)
@@ -567,12 +610,12 @@ function bindPasswordHint(inputId, hintId) {
   const pw = $("#" + inputId);
   if (!pw) return;
   pw.addEventListener("input", () => {
-    const v = pw.value;
+    const v    = pw.value;
     const hint = $("#" + hintId);
     if (!hint) return;
-    if (!v) { hint.className = "hint"; hint.textContent = "Min. 6 characters with uppercase, lowercase, number, and special character."; return; }
-    if (isStrong(v)) { hint.className = "hint ok"; hint.textContent = "Strong password ✓"; }
-    else { hint.className = "hint bad"; hint.textContent = "Add uppercase, lowercase, number, special character (min. 6 chars)."; }
+    if (!v)            { hint.className = "hint";     hint.textContent = "Min. 6 characters with uppercase, lowercase, number, and special character."; return; }
+    if (isStrong(v))   { hint.className = "hint ok";  hint.textContent = "Strong password ✓"; }
+    else               { hint.className = "hint bad"; hint.textContent = "Add uppercase, lowercase, number, special character (min. 6 chars)."; }
   });
 }
 
@@ -580,19 +623,19 @@ function hideGoogleButton(id, msgId) {
   const btn = document.getElementById(id);
   if (!btn) return;
   btn.addEventListener("click", () => setMsg(msgId, "Google sign-in is not available in the static demo."));
-  // Hide the social section since OAuth needs a backend
+  /* Hide the social section since OAuth requires a backend */
   const wrap = btn.closest(".social-row, .social-buttons, .social-login, .social, .form-row, .auth-social");
   if (wrap) wrap.style.display = "none";
   else btn.style.display = "none";
-  // Also hide adjacent dividers
+  /* Also hide adjacent dividers */
   const divider = document.querySelector(".or-divider, .divider, .auth-divider");
   if (divider) divider.style.display = "none";
 }
 
 function updateAuthUI() {
-  const u = currentUser();
-  const userMenu = $("#user-menu");
-  const authText = $("#auth-text");
+  const u         = currentUser();
+  const userMenu  = $("#user-menu");
+  const authText  = $("#auth-text");
   const mAuthText = $("#mobile-auth-text");
   const mUserMenu = $("#mobile-user-menu");
   if (!u) {
@@ -607,22 +650,24 @@ function updateAuthUI() {
   mAuthText?.classList.add("hidden");
   mUserMenu?.classList.remove("hidden");
   const name = getDisplayName(u);
-  $("#user-name").textContent = name;
+  $("#user-name").textContent   = name;
   $("#user-avatar").textContent = (name[0] || "A").toUpperCase();
   const signOutAndGoHome = () => { signOut(); location.href = home(); };
   $("#logout-btn").onclick = signOutAndGoHome;
   const mLogout = $("#mobile-logout-btn");
   if (mLogout) mLogout.onclick = signOutAndGoHome;
 
-  if ((PAGE_KEY === "login" || PAGE_KEY === "register")) location.href = home();
+  /* Redirect already-logged-in users away from auth pages */
+  if (PAGE_KEY === "login" || PAGE_KEY === "register") location.href = home();
 }
 
+/* register.html */
 function bindRegister() {
   const f = $("#register-form"); if (!f) return;
   bindPasswordHint("password", "password-hint");
   hideGoogleButton("google-register", "form-message");
 
-  // Restrict username to letters only (real-time)
+  /* Restrict username to letters only (real-time) */
   const usernameInput = $("#username");
   if (usernameInput) {
     usernameInput.addEventListener("input", () => {
@@ -630,7 +675,7 @@ function bindRegister() {
     });
   }
 
-  // Restrict full name to letters and spaces only (real-time)
+  /* Restrict full name to letters and spaces only (real-time) */
   const fullNameInput = $("#full-name");
   if (fullNameInput) {
     fullNameInput.addEventListener("input", () => {
@@ -647,13 +692,13 @@ function bindRegister() {
     const confirm  = $("#confirm-password").value;
     setMsg("form-message", "");
     if (!username || !fullName || !email) return setMsg("form-message", "Please fill in all required fields.");
-    if (!isLettersOnly(username)) return setMsg("form-message", "Username must contain letters only.");
-    if (!isLettersAndSpaces(fullName)) return setMsg("form-message", "Full name must contain letters only.");
-    if (!isStrong(password)) return setMsg("form-message", "Password must be at least 6 characters.");
-    if (password !== confirm) return setMsg("form-message", "Passwords do not match.");
+    if (!isLettersOnly(username))         return setMsg("form-message", "Username must contain letters only.");
+    if (!isLettersAndSpaces(fullName))    return setMsg("form-message", "Full name must contain letters only.");
+    if (!isStrong(password))              return setMsg("form-message", "Password must be at least 6 characters.");
+    if (password !== confirm)             return setMsg("form-message", "Passwords do not match.");
 
     const users = getUsers();
-    if (users.some(u => u.email === email))    return setMsg("form-message", "An account with that email already exists.");
+    if (users.some(u => u.email === email))       return setMsg("form-message", "An account with that email already exists.");
     if (users.some(u => u.username === username)) return setMsg("form-message", "That username is already taken.");
 
     const user = {
@@ -669,6 +714,7 @@ function bindRegister() {
   });
 }
 
+/* login.html */
 function bindLogin() {
   const f = $("#login-form"); if (!f) return;
   hideGoogleButton("google-login", "login-message");
@@ -685,54 +731,38 @@ function bindLogin() {
   });
 }
 
-function bindChangePassword() {
-  const f = $("#password-form"); if (!f) return;
-  bindPasswordHint("new-password", "new-password-hint");
-  f.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const password = $("#new-password").value;
-    const confirm  = $("#confirm-new-password").value;
-    setMsg("password-message", "");
-    if (!isStrong(password)) return setMsg("password-message", "Password must be at least 6 characters.");
-    if (password !== confirm) return setMsg("password-message", "Passwords do not match.");
-    const u = currentUser();
-    if (!u) return setMsg("password-message", "Please log in first.");
-    const users = getUsers();
-    const target = users.find(x => x.id === u.id);
-    target.password = password;
-    setUsers(users);
-    setMsg("password-message", "Password updated successfully.", true);
-    f.reset();
-    const hint = $("#new-password-hint");
-    if (hint) { hint.className = "hint"; hint.textContent = "Use uppercase, lowercase, number, and a special character."; }
-  });
-}
-
+/* =========================================================
+   12. ACCOUNT — account.html
+   ========================================================= */
 function loadAccount() {
   const u1 = $("#account-username"); if (!u1) return;
-  const u = currentUser();
+  const u  = currentUser();
   if (!u) { location.href = pagePath("login.html"); return; }
-  u1.textContent = u.username || "—";
+  u1.textContent                      = u.username  || "—";
   $("#account-full-name").textContent = u.full_name || "—";
-  $("#account-email").textContent = u.email || "—";
-  $("#account-phone").textContent = u.phone || "—";
+  $("#account-email").textContent     = u.email     || "—";
+  $("#account-phone").textContent     = u.phone     || "—";
   bindAccountEdit(u);
 }
 
 function bindAccountEdit(u) {
-  const editBtn = $("#edit-profile-btn");
+  const editBtn   = $("#edit-profile-btn");
   const cancelBtn = $("#cancel-edit-btn");
-  const form = $("#account-edit");
-  const view = $("#account-view");
+  const form      = $("#account-edit");
+  const view      = $("#account-view");
   if (!editBtn || !form || !view) return;
   if (form.dataset.bound) return;
   form.dataset.bound = "1";
 
+  $("#edit-phone").addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
+  });
+
   const openEdit = () => {
-    $("#edit-username").value  = u.username || "";
+    $("#edit-username").value  = u.username  || "";
     $("#edit-full-name").value = u.full_name || "";
-    $("#edit-email").value     = u.email || "";
-    $("#edit-phone").value     = u.phone || "";
+    $("#edit-email").value     = u.email     || "";
+    $("#edit-phone").value     = u.phone     || "";
     setMsg("edit-message", "");
     view.classList.add("hidden");
     form.classList.remove("hidden");
@@ -744,7 +774,7 @@ function bindAccountEdit(u) {
     editBtn.classList.remove("hidden");
   };
 
-  editBtn.onclick = openEdit;
+  editBtn.onclick  = openEdit;
   cancelBtn.onclick = closeEdit;
 
   form.onsubmit = (e) => {
@@ -754,21 +784,22 @@ function bindAccountEdit(u) {
     const phone     = $("#edit-phone").value.trim();
     if (!username)  return setMsg("edit-message", "Username is required.");
     if (!full_name) return setMsg("edit-message", "Full name is required.");
+    if (phone && !/^09[0-9]{9}$/.test(phone)) return setMsg("edit-message", "Phone must be 11 digits and start with 09.");
 
     const users = getUsers();
     if (users.some(x => x.id !== u.id && x.username === username))
       return setMsg("edit-message", "That username is already taken.");
 
-    const target = users.find(x => x.id === u.id);
-    target.username = username;
+    const target     = users.find(x => x.id === u.id);
+    target.username  = username;
     target.full_name = full_name;
-    target.phone = phone;
+    target.phone     = phone;
     setUsers(users);
 
     Object.assign(u, { username, full_name, phone });
-    $("#account-username").textContent = username;
+    $("#account-username").textContent  = username;
     $("#account-full-name").textContent = full_name;
-    $("#account-phone").textContent = phone || "—";
+    $("#account-phone").textContent     = phone || "—";
     setMsg("edit-message", "Profile updated.", true);
     updateAuthUI();
     setTimeout(closeEdit, 700);
@@ -776,17 +807,17 @@ function bindAccountEdit(u) {
 }
 
 /* =========================================================
-   GLOBAL EVENT WIRING
+   13. GLOBAL EVENT WIRING
    ========================================================= */
 function wireEvents() {
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-act], [data-id], [data-pd], #open-cart, #close-cart, #scrim, #menu-open, #menu-close, .add-cart, .wish, .chip, #checkout-btn");
+    const t = e.target.closest("[data-act], [data-id], [data-pd], #open-cart, #close-cart, #scrim, #menu-open, #menu-close, .add-cart, .chip, #checkout-btn");
     if (!t) return;
 
-    if (t.id === "open-cart") return openCart();
-    if (t.id === "close-cart" || t.id === "scrim") return closeCart();
-    if (t.id === "menu-open") return openMenu();
-    if (t.id === "menu-close") return closeMenu();
+    if (t.id === "open-cart")                       return openCart();
+    if (t.id === "close-cart" || t.id === "scrim")  return closeCart();
+    if (t.id === "menu-open")                       return openMenu();
+    if (t.id === "menu-close")                      return closeMenu();
 
     if (t.classList.contains("add-cart")) {
       const p = PRODUCTS.find(x => x.id === t.dataset.id);
@@ -801,6 +832,7 @@ function wireEvents() {
       }
       return;
     }
+
     if (t.dataset.pd === "inc" || t.dataset.pd === "dec") {
       const inp = $("#pd-qty-input");
       if (!inp) return;
@@ -811,12 +843,13 @@ function wireEvents() {
       inp.value = v;
       return;
     }
-    if (t.classList.contains("wish")) return toggleWish(t.dataset.id);
+
     if (t.classList.contains("chip")) {
       const grid = $("#products-grid");
       if (grid) { grid.dataset.cat = t.dataset.cat; renderProducts(); }
       return;
     }
+
     if (t.id === "checkout-btn") {
       if (getCart().length === 0) return toast("Your cart is empty", "bad");
       if (!currentUser()) {
@@ -841,10 +874,8 @@ function wireEvents() {
 }
 
 /* =========================================================
-   SAVED ADDRESSES (Account page)
+   14. SAVED ADDRESSES — account.html
    ========================================================= */
-const ADDR_LIMIT = 3;
-
 function fetchUserAddresses() {
   const u = currentUser();
   if (!u) return [];
@@ -860,21 +891,21 @@ function bindAddresses() {
   const list = $("#addresses-list");
   if (!list) return;
 
-  const form = $("#address-form");
-  const addBtn = $("#addr-add-btn");
+  const form      = $("#address-form");
+  const addBtn    = $("#addr-add-btn");
   const cancelBtn = $("#addr-cancel-btn");
-  const titleEl = $("#addr-form-title");
+  const titleEl   = $("#addr-form-title");
 
   function fill(a) {
-    $("#addr-id").value = a?.id || "";
-    $("#addr-label").value = a?.label || "Home";
-    $("#addr-name").value = a?.full_name || "";
-    $("#addr-phone").value = a?.phone || "";
-    $("#addr-line").value = a?.address_line || "";
-    $("#addr-city").value = a?.city || "";
-    $("#addr-province").value = a?.province || "";
-    $("#addr-region").value = a?.region || "";
-    $("#addr-postal").value = a?.postal_code || "";
+    $("#addr-id").value       = a?.id            || "";
+    $("#addr-label").value    = a?.label          || "Home";
+    $("#addr-name").value     = a?.full_name      || "";
+    $("#addr-phone").value    = a?.phone          || "";
+    $("#addr-line").value     = a?.address_line   || "";
+    $("#addr-city").value     = a?.city           || "";
+    $("#addr-province").value = a?.province       || "";
+    $("#addr-region").value   = a?.region         || "";
+    $("#addr-postal").value   = a?.postal_code    || "";
     $("#addr-default").checked = !!a?.is_default;
     titleEl.textContent = a ? "Edit Address" : "Add Address";
     setMsg("addr-message", "");
@@ -894,7 +925,7 @@ function bindAddresses() {
   function refresh() {
     const data = fetchUserAddresses().sort((a, b) => Number(b.is_default) - Number(a.is_default));
     addBtn.disabled = data.length >= ADDR_LIMIT;
-    addBtn.title = data.length >= ADDR_LIMIT ? "You can save up to 3 addresses." : "";
+    addBtn.title    = data.length >= ADDR_LIMIT ? "You can save up to 3 addresses." : "";
 
     if (!data.length) {
       list.innerHTML = `<p class="muted" style="margin:0">No saved addresses yet — click <strong>+ Add Address</strong> to add one.</p>`;
@@ -943,15 +974,15 @@ function bindAddresses() {
     });
   }
 
-  addBtn.onclick = () => showForm(null);
+  addBtn.onclick  = () => showForm(null);
   cancelBtn.onclick = hideForm;
 
   form.onsubmit = (e) => {
     e.preventDefault();
     setMsg("addr-message", "");
-    const id = $("#addr-id").value;
+    const id      = $("#addr-id").value;
     const payload = {
-      id: id || uid(),
+      id:           id || uid(),
       label:        $("#addr-label").value,
       full_name:    $("#addr-name").value.trim(),
       phone:        $("#addr-phone").value.trim(),
@@ -963,7 +994,7 @@ function bindAddresses() {
       is_default:   $("#addr-default").checked,
       created_at:   new Date().toISOString(),
     };
-    const required = ["full_name","phone","address_line","city","province","region"];
+    const required = ["full_name", "phone", "address_line", "city", "province", "region"];
     for (const k of required) if (!payload[k]) return setMsg("addr-message", "Please fill in all required fields.");
 
     let all = fetchUserAddresses();
@@ -987,19 +1018,8 @@ function bindAddresses() {
 }
 
 /* =========================================================
-   CHECKOUT PAGE
+   15. CHECKOUT — checkout.html
    ========================================================= */
-const SHIPPING_FEES = { ncr: 100, luzon: 180, visayas: 220, mindanao: 250 };
-
-/* Legacy fallback used when ph-address.js is NOT loaded on a page
-   (it only ships with checkout.html — accounts/orders also display
-   region info, so they need a sensible default). */
-const LEGACY_REGIONS = {
-  ncr:      { label: "Metro Manila (NCR)",   shipping: "ncr" },
-  luzon:    { label: "Luzon (outside NCR)",  shipping: "luzon" },
-  visayas:  { label: "Visayas",              shipping: "visayas" },
-  mindanao: { label: "Mindanao",             shipping: "mindanao" },
-};
 
 /* Look up a region by key. Returns { label, shipping } or null.
    Single source of truth used by getRegionLabel + getShippingFee. */
@@ -1011,14 +1031,11 @@ function findRegion(key) {
   return LEGACY_REGIONS[key] || null;
 }
 
-function getRegionLabel(key) {
-  return findRegion(key)?.label || key;
-}
+function getRegionLabel(key)    { return findRegion(key)?.label || key; }
 function getShippingFee(regionKey) {
   const tier = findRegion(regionKey)?.shipping;
   return tier ? SHIPPING_FEES[tier] : null;
 }
-const PAYMENT_LABELS = { cod: "Cash on Delivery", online: "Online Payment", installment: "Installment" };
 
 function bindCheckout() {
   const app = $("#checkout-app");
@@ -1034,51 +1051,42 @@ function bindCheckout() {
   setVisibleState(checkoutStates, "ok");
 
   $("#co-name").value  = u.full_name || "";
-  $("#co-phone").value = u.phone || "";
-  $("#co-email").value = u.email || "";
+  $("#co-phone").value = u.phone     || "";
+  $("#co-email").value = u.email     || "";
 
-  const savedAddresses = fetchUserAddresses();
-  let activePickedAddrId = null;
-
-  // --- Philippine cascading address helpers ---
-  function buildRegionDropdown() {
-    const sel = $("#co-region");
-    PH_REGIONS.forEach(r => {
-      const opt = document.createElement("option");
-      opt.value = r.key;
-      opt.textContent = r.label;
-      sel.appendChild(opt);
+  /* Restrict phone input to digits only, max 11 characters */
+  const phoneInput = $("#co-phone");
+  if (phoneInput) {
+    phoneInput.addEventListener("input", () => {
+      phoneInput.value = phoneInput.value.replace(/[^0-9]/g, "").slice(0, 11);
     });
   }
 
+  const savedAddresses  = fetchUserAddresses();
+  let activePickedAddrId = null;
+
+  /* ---- Philippine cascading address helpers ---- */
+
+  function buildRegionDropdown() {
+    buildSelectOptions($("#co-region"), PH_REGIONS, "key", "label");
+  }
+
   function buildProvinceDropdown(regionKey) {
-    const sel = $("#co-province");
-    sel.innerHTML = '<option value="">Select province…</option>';
+    const sel       = $("#co-province");
     const provinces = PH_PROVINCES[regionKey] || [];
-    provinces.forEach(p => {
-      const opt = document.createElement("option");
-      opt.value = p.key;
-      opt.textContent = p.label;
-      sel.appendChild(opt);
-    });
+    buildSelectOptions(sel, provinces, "key", "label", "Select province…");
     sel.disabled = !provinces.length;
-    // Reset city when province changes
+    /* Reset city when province changes */
     const citySel = $("#co-city");
-    citySel.innerHTML = '<option value="">Select city / municipality…</option>';
-    citySel.disabled = true;
+    citySel.innerHTML = "<option value=\"\">Select city / municipality…</option>";
+    citySel.disabled  = true;
     $("#co-postal").value = "";
   }
 
   function buildCityDropdown(provinceKey) {
-    const sel = $("#co-city");
-    sel.innerHTML = '<option value="">Select city / municipality…</option>';
+    const sel    = $("#co-city");
     const cities = PH_CITIES[provinceKey] || [];
-    cities.forEach(c => {
-      const opt = document.createElement("option");
-      opt.value = c.name;
-      opt.textContent = c.name;
-      sel.appendChild(opt);
-    });
+    buildSelectOptions(sel, cities, "name", "name", "Select city / municipality…");
     sel.disabled = !cities.length;
     $("#co-postal").value = "";
   }
@@ -1086,10 +1094,10 @@ function bindCheckout() {
   buildRegionDropdown();
 
   function fillFromAddress(a) {
-    $("#co-name").value     = a.full_name;
-    $("#co-phone").value    = a.phone;
-    $("#co-address").value  = a.address_line;
-    // Cascade: region → province → city → postal
+    $("#co-name").value    = a.full_name;
+    $("#co-phone").value   = a.phone;
+    $("#co-address").value = a.address_line;
+    /* Cascade: region → province → city → postal */
     const regionKey   = a.region   || "";
     const provinceKey = a.province || "";
     const cityName    = a.city     || "";
@@ -1100,8 +1108,8 @@ function bindCheckout() {
       buildCityDropdown(provinceKey);
       if (cityName) {
         $("#co-city").value = cityName;
-        const cities = PH_CITIES[provinceKey] || [];
-        const cityData = cities.find(c => c.name === cityName);
+        const cities    = PH_CITIES[provinceKey] || [];
+        const cityData  = cities.find(c => c.name === cityName);
         $("#co-postal").value = cityData ? cityData.postal : (a.postal_code || "");
       }
     }
@@ -1111,8 +1119,8 @@ function bindCheckout() {
   }
 
   function refreshSaveCheckbox() {
-    const row = $("#save-addr-row");
-    const cb = $("#co-save-address");
+    const row  = $("#save-addr-row");
+    const cb   = $("#co-save-address");
     const hide = !!activePickedAddrId || savedAddresses.length >= ADDR_LIMIT;
     row.classList.toggle("hidden", hide);
     if (hide) cb.checked = false;
@@ -1120,7 +1128,7 @@ function bindCheckout() {
 
   if (savedAddresses.length) {
     const picker = $("#saved-addresses-picker");
-    const cards = $("#saved-addresses-cards");
+    const cards  = $("#saved-addresses-cards");
     picker.classList.remove("hidden");
     cards.innerHTML = savedAddresses.map(a => `
       <button type="button" class="addr-pick-card" data-id="${a.id}">
@@ -1144,7 +1152,7 @@ function bindCheckout() {
         c.classList.add("active");
         if (c.dataset.new) {
           activePickedAddrId = null;
-          ["co-address","co-region","co-postal"].forEach(id => $("#" + id).value = "");
+          ["co-address", "co-region", "co-postal"].forEach(id => $("#" + id).value = "");
           buildProvinceDropdown("");
           buildCityDropdown("");
           refreshSaveCheckbox();
@@ -1176,19 +1184,19 @@ function bindCheckout() {
   }
 
   function recomputeTotals() {
-    const list = getCart();
+    const list     = getCart();
     const subtotal = list.reduce((s, i) => s + i.price * i.qty, 0);
     const regionKey = $("#co-region").value;
-    const shipping = getShippingFee(regionKey);
+    const shipping  = getShippingFee(regionKey);
     $("#co-subtotal").textContent = peso(subtotal);
     $("#co-shipping").textContent = shipping == null ? "—" : peso(shipping);
-    $("#co-total").textContent = peso(subtotal + (shipping || 0));
+    $("#co-total").textContent    = peso(subtotal + (shipping || 0));
   }
 
   renderItems();
   recomputeTotals();
 
-  // Cascading dropdown event listeners
+  /* Cascading dropdown event listeners */
   $("#co-region").addEventListener("change", () => {
     buildProvinceDropdown($("#co-region").value);
     recomputeTotals();
@@ -1198,9 +1206,9 @@ function bindCheckout() {
   });
   $("#co-city").addEventListener("change", () => {
     const provinceKey = $("#co-province").value;
-    const cityName = $("#co-city").value;
-    const cities = PH_CITIES[provinceKey] || [];
-    const cityData = cities.find(c => c.name === cityName);
+    const cityName    = $("#co-city").value;
+    const cities      = PH_CITIES[provinceKey] || [];
+    const cityData    = cities.find(c => c.name === cityName);
     $("#co-postal").value = cityData ? cityData.postal : "";
   });
 
@@ -1212,27 +1220,29 @@ function bindCheckout() {
     if (!list.length) return setMsg("checkout-message", "Your cart is empty.");
 
     const region = $("#co-region").value;
-    if (!region) return setMsg("checkout-message", "Please select your region.");
-    if (!$("#co-province").value) return setMsg("checkout-message", "Please select your province.");
-    if (!$("#co-city").value) return setMsg("checkout-message", "Please select your city / municipality.");
+    if (!region)                   return setMsg("checkout-message", "Please select your region.");
+    if (!$("#co-province").value)  return setMsg("checkout-message", "Please select your province.");
+    if (!$("#co-city").value)      return setMsg("checkout-message", "Please select your city / municipality.");
+
     const shipping_fee = getShippingFee(region);
-    const subtotal = list.reduce((s, i) => s + i.price * i.qty, 0);
-    const total = subtotal + shipping_fee;
+    const subtotal     = list.reduce((s, i) => s + i.price * i.qty, 0);
+    const total        = subtotal + shipping_fee;
     const payment_method = document.querySelector('input[name="co-pay"]:checked')?.value || "cod";
 
-    const required = ["co-name","co-phone","co-address"];
+    const required = ["co-name", "co-phone", "co-address"];
     for (const id of required) {
-      if (!$("#" + id).value.trim()) {
+      if (!$("#" + id).value.trim())
         return setMsg("checkout-message", "Please fill in all required fields.");
-      }
     }
+    const phone = $("#co-phone").value.trim();
+    if (!/^09[0-9]{9}$/.test(phone))
+      return setMsg("checkout-message", "Phone number must be 11 digits and start with 09 (e.g. 09171234567).");
 
-    // Stock check + decrement
+    /* Stock check before placing the order */
     for (const it of list) {
       const p = PRODUCTS.find(x => x.id === it.id);
-      if (!p || p.stock < it.qty) {
+      if (!p || p.stock < it.qty)
         return setMsg("checkout-message", "Sorry — one or more items just went out of stock. Please review your cart.");
-      }
     }
 
     const order = {
@@ -1245,22 +1255,22 @@ function bindCheckout() {
       email:        $("#co-email").value.trim(),
       address_line: $("#co-address").value.trim(),
       city:         $("#co-city").value.trim(),
-      province:     (() => {
+      province: (() => {
         const pKey = $("#co-province").value;
         const rKey = $("#co-region").value;
         const prov = (PH_PROVINCES[rKey] || []).find(p => p.key === pKey);
         return prov ? prov.label : pKey;
       })(),
       region,
-      postal_code:  $("#co-postal").value.trim(),
-      notes:        $("#co-notes").value.trim(),
+      postal_code: $("#co-postal").value.trim(),
+      notes:       $("#co-notes").value.trim(),
       items: list.map(i => ({
         product_id: i.id, name: i.name, img: stripBase(i.img),
         unit_price: i.price, qty: i.qty, line_total: i.price * i.qty,
       })),
     };
 
-    // Decrement product stock
+    /* Decrement product stock */
     const updated = PRODUCTS.map(p => ({ ...p, img: stripBase(p.img) }));
     for (const it of list) {
       const p = updated.find(x => x.id === it.id);
@@ -1268,17 +1278,17 @@ function bindCheckout() {
     }
     persistProducts(updated);
 
-    // Save order
+    /* Save order */
     const orders = readJSON(LS.ORDERS(u.id), []);
     orders.unshift(order);
     writeJSON(LS.ORDERS(u.id), orders);
 
-    // Optional: save the address
+    /* Optionally persist the delivery address */
     const wantsSave = $("#co-save-address")?.checked;
     if (wantsSave && !activePickedAddrId && savedAddresses.length < ADDR_LIMIT) {
       const all = fetchUserAddresses();
       all.push({
-        id: uid(),
+        id:           uid(),
         label:        all.length === 0 ? "Home" : "Other",
         full_name:    order.full_name,
         phone:        order.phone,
@@ -1299,12 +1309,8 @@ function bindCheckout() {
 }
 
 /* =========================================================
-   ORDERS PAGE (list + detail)
+   16. ORDERS — orders.html
    ========================================================= */
-const STATUS_LABELS = {
-  pending: "Pending", packed: "Packed", shipped: "Shipped",
-  delivered: "Delivered", cancelled: "Cancelled"
-};
 function statusPill(status) {
   return `<span class="status-pill status-${status}">${STATUS_LABELS[status] || status}</span>`;
 }
@@ -1318,9 +1324,9 @@ function bindOrders() {
 
   setVisibleState({ loading: "orders-loading", ok: host }, "ok");
 
-  const params = new URLSearchParams(location.search);
+  const params  = new URLSearchParams(location.search);
   const orderId = params.get("id");
-  const isNew = params.get("new") === "1";
+  const isNew   = params.get("new") === "1";
 
   if (orderId) return renderOrderDetail(host, orderId, isNew, u);
   return renderOrderList(host, u);
@@ -1338,7 +1344,7 @@ function renderOrderList(host, u) {
     <div class="orders-list">
       ${data.map(o => {
         const itemCount = (o.items || []).reduce((s, x) => s + (x.qty || 0), 0);
-        const date = new Date(o.created_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
+        const date      = new Date(o.created_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
         return `
           <a class="order-card" href="orders.html?id=${o.id}">
             <div class="order-card-head">
@@ -1366,8 +1372,8 @@ function renderOrderDetail(host, orderId, isNew, u) {
       ["Back to My Orders", "orders.html"]);
     return;
   }
-  const items = order.items || [];
-  const date = new Date(order.created_at).toLocaleString("en-PH", { dateStyle: "long", timeStyle: "short" });
+  const items  = order.items || [];
+  const date   = new Date(order.created_at).toLocaleString("en-PH", { dateStyle: "long", timeStyle: "short" });
   const banner = isNew ? `
     <div class="thank-banner">
       <div class="icon">🎉</div>
@@ -1383,7 +1389,7 @@ function renderOrderDetail(host, orderId, isNew, u) {
       <div class="account-card">
         <div class="account-head">
           <div>
-            <h2 style="margin:0">Order <em>#${order.id.slice(0,8)}</em></h2>
+            <h2 style="margin:0">Order <em>#${order.id.slice(0, 8)}</em></h2>
             <div class="muted" style="font-size:.88rem">Placed ${date}</div>
           </div>
           ${statusPill(order.status)}
@@ -1432,7 +1438,7 @@ function renderOrderDetail(host, orderId, isNew, u) {
 }
 
 /* =========================================================
-   INIT
+   17. INIT
    ========================================================= */
 document.addEventListener("DOMContentLoaded", () => {
   buildHeader();
@@ -1446,7 +1452,6 @@ document.addEventListener("DOMContentLoaded", () => {
   wireEvents();
   bindRegister();
   bindLogin();
-  bindChangePassword();
   bindPasswordToggles();
   loadAccount();
   updateAuthUI();
