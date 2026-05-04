@@ -896,19 +896,81 @@ function bindAddresses() {
   const cancelBtn = $("#addr-cancel-btn");
   const titleEl   = $("#addr-form-title");
 
+  /* ---- Cascading address dropdowns (mirrors checkout logic) ---- */
+  function buildAddrRegionDropdown() {
+    if (typeof PH_REGIONS === "undefined") return;
+    buildSelectOptions($("#addr-region"), PH_REGIONS, "key", "label");
+  }
+
+  function buildAddrProvinceDropdown(regionKey) {
+    const sel       = $("#addr-province");
+    const provinces = (typeof PH_PROVINCES !== "undefined" && PH_PROVINCES[regionKey]) || [];
+    buildSelectOptions(sel, provinces, "key", "label", "Select province…");
+    sel.disabled = !provinces.length;
+    const citySel = $("#addr-city");
+    citySel.innerHTML = "<option value=\"\">Select city / municipality…</option>";
+    citySel.disabled  = true;
+    $("#addr-postal").value = "";
+  }
+
+  function buildAddrCityDropdown(provinceKey) {
+    const sel    = $("#addr-city");
+    const cities = (typeof PH_CITIES !== "undefined" && PH_CITIES[provinceKey]) || [];
+    buildSelectOptions(sel, cities, "name", "name", "Select city / municipality…");
+    sel.disabled = !cities.length;
+    $("#addr-postal").value = "";
+  }
+
+  buildAddrRegionDropdown();
+
+  const addrPhoneInput = $("#addr-phone");
+  if (addrPhoneInput) {
+    addrPhoneInput.addEventListener("input", () => {
+      addrPhoneInput.value = addrPhoneInput.value.replace(/[^0-9]/g, "").slice(0, 11);
+    });
+  }
+
+  $("#addr-region").addEventListener("change", () => {
+    buildAddrProvinceDropdown($("#addr-region").value);
+  });
+  $("#addr-province").addEventListener("change", () => {
+    buildAddrCityDropdown($("#addr-province").value);
+  });
+  $("#addr-city").addEventListener("change", () => {
+    const provinceKey = $("#addr-province").value;
+    const cityName    = $("#addr-city").value;
+    const cities      = (typeof PH_CITIES !== "undefined" && PH_CITIES[provinceKey]) || [];
+    const cityData    = cities.find(c => c.name === cityName);
+    $("#addr-postal").value = cityData ? cityData.postal : "";
+  });
+
   function fill(a) {
-    $("#addr-id").value       = a?.id            || "";
-    $("#addr-label").value    = a?.label          || "Home";
-    $("#addr-name").value     = a?.full_name      || "";
-    $("#addr-phone").value    = a?.phone          || "";
-    $("#addr-line").value     = a?.address_line   || "";
-    $("#addr-city").value     = a?.city           || "";
-    $("#addr-province").value = a?.province       || "";
-    $("#addr-region").value   = a?.region         || "";
-    $("#addr-postal").value   = a?.postal_code    || "";
+    $("#addr-id").value        = a?.id          || "";
+    $("#addr-label").value     = a?.label        || "Home";
+    $("#addr-name").value      = a?.full_name    || "";
+    $("#addr-phone").value     = a?.phone        || "";
+    $("#addr-line").value      = a?.address_line || "";
     $("#addr-default").checked = !!a?.is_default;
     titleEl.textContent = a ? "Edit Address" : "Add Address";
     setMsg("addr-message", "");
+
+    /* Cascade: region → province → city → postal */
+    const regionKey   = a?.region   || "";
+    const provinceKey = a?.province || "";
+    const cityName    = a?.city     || "";
+    buildAddrRegionDropdown();
+    $("#addr-region").value = regionKey;
+    buildAddrProvinceDropdown(regionKey);
+    if (provinceKey) {
+      $("#addr-province").value = provinceKey;
+      buildAddrCityDropdown(provinceKey);
+      if (cityName) {
+        $("#addr-city").value = cityName;
+        const cities   = (typeof PH_CITIES !== "undefined" && PH_CITIES[provinceKey]) || [];
+        const cityData = cities.find(c => c.name === cityName);
+        $("#addr-postal").value = cityData ? cityData.postal : (a?.postal_code || "");
+      }
+    }
   }
 
   function showForm(a) {
@@ -996,6 +1058,7 @@ function bindAddresses() {
     };
     const required = ["full_name", "phone", "address_line", "city", "province", "region"];
     for (const k of required) if (!payload[k]) return setMsg("addr-message", "Please fill in all required fields.");
+    if (!/^09[0-9]{9}$/.test(payload.phone)) return setMsg("addr-message", "Phone must be 11 digits and start with 09 (e.g. 09171234567).");
 
     let all = fetchUserAddresses();
     if (id) {
