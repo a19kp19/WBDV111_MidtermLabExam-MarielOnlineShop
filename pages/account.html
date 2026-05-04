@@ -93,27 +93,27 @@
             <label for="addr-region">Region</label>
             <select id="addr-region" required>
               <option value="">Select region…</option>
-              <option value="ncr">Metro Manila (NCR)</option>
-              <option value="luzon">Luzon (outside NCR)</option>
-              <option value="visayas">Visayas</option>
-              <option value="mindanao">Mindanao</option>
             </select>
+          </div>
+          <div class="field">
+            <label for="addr-province">Province</label>
+            <select id="addr-province" required disabled>
+              <option value="">Select province…</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="addr-city">City / Municipality</label>
+            <select id="addr-city" required disabled>
+              <option value="">Select city / municipality…</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="addr-postal">Postal Code</label>
+            <input type="text" id="addr-postal" inputmode="numeric" readonly placeholder="Auto-filled" style="background:var(--input-bg,#f5f5f5);cursor:default">
           </div>
           <div class="field co-full">
             <label for="addr-line">Street Address</label>
             <input type="text" id="addr-line" required placeholder="House #, Street, Barangay">
-          </div>
-          <div class="field">
-            <label for="addr-city">City / Municipality</label>
-            <input type="text" id="addr-city" required>
-          </div>
-          <div class="field">
-            <label for="addr-province">Province</label>
-            <input type="text" id="addr-province" required>
-          </div>
-          <div class="field">
-            <label for="addr-postal">Postal Code <span class="muted">(optional)</span></label>
-            <input type="text" id="addr-postal" inputmode="numeric">
           </div>
           <div class="field co-full">
             <label class="check-row"><input type="checkbox" id="addr-default"> Set as default address</label>
@@ -132,6 +132,7 @@
 
 <div id="site-footer"></div>
 
+<script src="../ph-address.js"></script>
 <script src="../script.js"></script>
 </body>
 </html>
