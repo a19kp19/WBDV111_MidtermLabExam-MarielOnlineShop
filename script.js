@@ -757,6 +757,9 @@ function bindAccountEdit(u) {
   $("#edit-phone").addEventListener("input", (e) => {
     e.target.value = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
   });
+  $("#edit-full-name").addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/[^A-Za-z ]/g, "");
+  });
 
   const openEdit = () => {
     $("#edit-username").value  = u.username  || "";
@@ -782,8 +785,9 @@ function bindAccountEdit(u) {
     const username  = $("#edit-username").value.trim();
     const full_name = $("#edit-full-name").value.trim();
     const phone     = $("#edit-phone").value.trim();
-    if (!username)  return setMsg("edit-message", "Username is required.");
-    if (!full_name) return setMsg("edit-message", "Full name is required.");
+    if (!username)                        return setMsg("edit-message", "Username is required.");
+    if (!full_name)                       return setMsg("edit-message", "Full name is required.");
+    if (!isLettersAndSpaces(full_name))   return setMsg("edit-message", "Full name must contain letters only.");
     if (phone && !/^09[0-9]{9}$/.test(phone)) return setMsg("edit-message", "Phone must be 11 digits and start with 09.");
 
     const users = getUsers();
@@ -929,6 +933,12 @@ function bindAddresses() {
       addrPhoneInput.value = addrPhoneInput.value.replace(/[^0-9]/g, "").slice(0, 11);
     });
   }
+  const addrNameInput = $("#addr-name");
+  if (addrNameInput) {
+    addrNameInput.addEventListener("input", () => {
+      addrNameInput.value = addrNameInput.value.replace(/[^A-Za-z ]/g, "");
+    });
+  }
 
   $("#addr-region").addEventListener("change", () => {
     buildAddrProvinceDropdown($("#addr-region").value);
@@ -1058,6 +1068,7 @@ function bindAddresses() {
     };
     const required = ["full_name", "phone", "address_line", "city", "province", "region"];
     for (const k of required) if (!payload[k]) return setMsg("addr-message", "Please fill in all required fields.");
+    if (!isLettersAndSpaces(payload.full_name)) return setMsg("addr-message", "Recipient name must contain letters only.");
     if (!/^09[0-9]{9}$/.test(payload.phone)) return setMsg("addr-message", "Phone must be 11 digits and start with 09 (e.g. 09171234567).");
 
     let all = fetchUserAddresses();
@@ -1122,6 +1133,13 @@ function bindCheckout() {
   if (phoneInput) {
     phoneInput.addEventListener("input", () => {
       phoneInput.value = phoneInput.value.replace(/[^0-9]/g, "").slice(0, 11);
+    });
+  }
+  /* Restrict full name to letters and spaces only */
+  const coNameInput = $("#co-name");
+  if (coNameInput) {
+    coNameInput.addEventListener("input", () => {
+      coNameInput.value = coNameInput.value.replace(/[^A-Za-z ]/g, "");
     });
   }
 
