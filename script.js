@@ -71,8 +71,6 @@ function escapeHtml(s) {
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
   ));
 }
-const escapeAttr = escapeHtml; // alias kept for readability at call sites
-
 /* Populate a <select> element with <option> nodes.
    Clears existing options first; optionally prepends a placeholder. */
 function buildSelectOptions(sel, items, valueKey, labelKey, placeholder) {
@@ -82,6 +80,18 @@ function buildSelectOptions(sel, items, valueKey, labelKey, placeholder) {
     opt.value       = item[valueKey];
     opt.textContent = item[labelKey];
     sel.appendChild(opt);
+  });
+}
+
+/* Attach a real-time input filter to an element.
+   regex  — characters to REMOVE (e.g. /[^0-9]/g)
+   maxLen — optional character cap */
+function restrictInput(el, regex, maxLen) {
+  if (!el) return;
+  el.addEventListener("input", () => {
+    let v = el.value.replace(regex, "");
+    if (maxLen) v = v.slice(0, maxLen);
+    el.value = v;
   });
 }
 
@@ -101,6 +111,18 @@ const LS = {
 
 /* Shipping fee tiers keyed by region shipping-tier name */
 const SHIPPING_FEES = { ncr: 100, luzon: 180, visayas: 220, mindanao: 250 };
+
+/* Look up a region by key — works whether ph-address.js is loaded or not.
+   Returns { label, shipping } or null. Used across addresses, checkout, orders. */
+function findRegion(key) {
+  if (typeof PH_REGIONS !== "undefined") {
+    const r = PH_REGIONS.find(x => x.key === key);
+    if (r) return r;
+  }
+  return LEGACY_REGIONS[key] || null;
+}
+function getRegionLabel(key)       { return findRegion(key)?.label || key; }
+function getShippingFee(regionKey) { const tier = findRegion(regionKey)?.shipping; return tier ? SHIPPING_FEES[tier] : null; }
 
 /* Fallback region map used when ph-address.js is NOT loaded on a page
    (checkout.html loads ph-address.js; other pages that display region
@@ -667,21 +689,8 @@ function bindRegister() {
   bindPasswordHint("password", "password-hint");
   hideGoogleButton("google-register", "form-message");
 
-  /* Restrict username to letters only (real-time) */
-  const usernameInput = $("#username");
-  if (usernameInput) {
-    usernameInput.addEventListener("input", () => {
-      usernameInput.value = usernameInput.value.replace(/[^A-Za-z]/g, "");
-    });
-  }
-
-  /* Restrict full name to letters and spaces only (real-time) */
-  const fullNameInput = $("#full-name");
-  if (fullNameInput) {
-    fullNameInput.addEventListener("input", () => {
-      fullNameInput.value = fullNameInput.value.replace(/[^A-Za-z ]/g, "");
-    });
-  }
+  restrictInput($("#username"),   /[^A-Za-z]/g);
+  restrictInput($("#full-name"),  /[^A-Za-z ]/g);
 
   f.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -754,12 +763,8 @@ function bindAccountEdit(u) {
   if (form.dataset.bound) return;
   form.dataset.bound = "1";
 
-  $("#edit-phone").addEventListener("input", (e) => {
-    e.target.value = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
-  });
-  $("#edit-full-name").addEventListener("input", (e) => {
-    e.target.value = e.target.value.replace(/[^A-Za-z ]/g, "");
-  });
+  restrictInput($("#edit-phone"),     /[^0-9]/g,    11);
+  restrictInput($("#edit-full-name"), /[^A-Za-z ]/g);
 
   const openEdit = () => {
     $("#edit-username").value  = u.username  || "";
@@ -927,18 +932,8 @@ function bindAddresses() {
 
   buildAddrRegionDropdown();
 
-  const addrPhoneInput = $("#addr-phone");
-  if (addrPhoneInput) {
-    addrPhoneInput.addEventListener("input", () => {
-      addrPhoneInput.value = addrPhoneInput.value.replace(/[^0-9]/g, "").slice(0, 11);
-    });
-  }
-  const addrNameInput = $("#addr-name");
-  if (addrNameInput) {
-    addrNameInput.addEventListener("input", () => {
-      addrNameInput.value = addrNameInput.value.replace(/[^A-Za-z ]/g, "");
-    });
-  }
+  restrictInput($("#addr-phone"), /[^0-9]/g,    11);
+  restrictInput($("#addr-name"),  /[^A-Za-z ]/g);
 
   $("#addr-region").addEventListener("change", () => {
     buildAddrProvinceDropdown($("#addr-region").value);
@@ -1094,23 +1089,6 @@ function bindAddresses() {
 /* =========================================================
    15. CHECKOUT — checkout.html
    ========================================================= */
-
-/* Look up a region by key. Returns { label, shipping } or null.
-   Single source of truth used by getRegionLabel + getShippingFee. */
-function findRegion(key) {
-  if (typeof PH_REGIONS !== "undefined") {
-    const r = PH_REGIONS.find(x => x.key === key);
-    if (r) return r;
-  }
-  return LEGACY_REGIONS[key] || null;
-}
-
-function getRegionLabel(key)    { return findRegion(key)?.label || key; }
-function getShippingFee(regionKey) {
-  const tier = findRegion(regionKey)?.shipping;
-  return tier ? SHIPPING_FEES[tier] : null;
-}
-
 function bindCheckout() {
   const app = $("#checkout-app");
   if (!app) return;
@@ -1128,20 +1106,8 @@ function bindCheckout() {
   $("#co-phone").value = u.phone     || "";
   $("#co-email").value = u.email     || "";
 
-  /* Restrict phone input to digits only, max 11 characters */
-  const phoneInput = $("#co-phone");
-  if (phoneInput) {
-    phoneInput.addEventListener("input", () => {
-      phoneInput.value = phoneInput.value.replace(/[^0-9]/g, "").slice(0, 11);
-    });
-  }
-  /* Restrict full name to letters and spaces only */
-  const coNameInput = $("#co-name");
-  if (coNameInput) {
-    coNameInput.addEventListener("input", () => {
-      coNameInput.value = coNameInput.value.replace(/[^A-Za-z ]/g, "");
-    });
-  }
+  restrictInput($("#co-phone"), /[^0-9]/g,    11);
+  restrictInput($("#co-name"),  /[^A-Za-z ]/g);
 
   const savedAddresses  = fetchUserAddresses();
   let activePickedAddrId = null;
