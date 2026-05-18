@@ -1,5 +1,5 @@
 /* =========================================================
-   Mariel Store — STATIC version (no backend)
+   Mariel Store
    ---------------------------------------------------------
    Sections (search the headers to jump):
 
@@ -408,15 +408,76 @@ function resolveImg(src) {
   if (/^(https?:)?\/\//i.test(src) || src.startsWith("/")) return src;
   return base + src.replace(/^\.?\//, "");
 }
-
+/* ========================================================================================= */
+/* ____   ____    ___   ____   _   _   ____ _____ ____                                     */
+/* |  _ \ |  _ \  / _ \ |  _ \ | | | | / ___|_   _/ ___|                                    */
+/* | |_) || |_) || | | || | | || | | || |     | | \___ \                                    */
+/* |  __/ |  _ < | |_| || |_| || |_| || |___  | |  ___) |                                   */
+/* |_|    |_| \_\ \___/ |____/  \___/  \____| |_| |____/                                    */
+/* ========================================================================================= */
 const DEFAULT_PRODUCTS = [
-  { id: "iphone14", name: "iPhone 14 Pro",             price: 50000, cat: "Gadgets",     img: "images/products/Iphone14.jpg",   tag: "Bestseller", desc: "128GB, factory unlocked, 1-year warranty.",                details: "6.1\" Super Retina XDR display, A16 Bionic chip, 48MP main camera, Face ID, 5G.",      stock: 3,  sort_order: 1 },
-  { id: "iphone12", name: "iPhone 12",                 price: 28000, cat: "Gadgets",     img: "images/products/Iphone12.jpg",   tag: "",           desc: "256GB, factory unlocked, 1-year warranty.",                details: "6.1\" OLED display, A14 Bionic chip, dual 12MP cameras, 5G capable.",                  stock: 7,  sort_order: 2 },
-  { id: "ipad",     name: "Apple iPad",                price: 22000, cat: "Gadgets",     img: "images/products/Ipad.jpg",       tag: "New",        desc: "128GB, 11th Gen(A16 Bionic) with Apple Pencil support.",   details: "10.9\" Liquid Retina display, A16 Bionic chip, Apple Pencil (2nd generation) support.", stock: 5,  sort_order: 3 },
-  { id: "clock",    name: "Wall Clock",                price: 200,   cat: "Accessories", img: "images/products/Clock.jpg",      tag: "",           desc: "Affordable, modern, durable for any room.",                 details: "30cm diameter, silent quartz movement, AA battery powered.",                            stock: 1,  sort_order: 4 },
-  { id: "snickers", name: "Mixed Chocolates Box",      price: 500,   cat: "Foods",       img: "images/products/Snickers.jpg",   tag: "Hot",        desc: "A Box of Mixed Chocolates, gift ready.",                    details: "A box with different kind of chocolates inside. All-time favorite!",                    stock: 13, sort_order: 5 },
-  { id: "choco",    name: "Snickers, Dairy Milk Bars", price: 350,   cat: "Foods",       img: "images/products/Chocolates.jpg", tag: "",           desc: "Snickers and Dairy Milk Bars selling per box.",             details: "Classic combination, irresistible taste.",                                              stock: 22, sort_order: 6 },
-  { id: "chair1",   name: "Set of Lounge Chairs",      price: 3000,  cat: "Furnitures",  img: "images/products/chair1.jpg",     tag: "New",        desc: "Comfortable, stylish, perfect for any living room.",        details: "3-seater, high-density foam cushions, durable fabric upholstery.",                      stock: 1,  sort_order: 7 },
+  /* ==========================================================================
+     GADGETS
+     ========================================================================== */
+  { id: "iphone11", name: "iPhone 11", price: 17500, cat: "Gadgets", img: "images/gadgets/iphone11.jpg", tag: "Sale", desc: "Reliable dual-camera system with all-day battery life.", details: "64GB/128GB, Liquid Retina HD display, A13 Bionic chip.", stock: 5, sort_order: 35 },
+  { id: "iphone13", name: "iPhone 13", price: 29000, cat: "Gadgets", img: "images/gadgets/iphone13.jpg", tag: "Popular", desc: "Advanced dual-camera setup with a major leap in battery endurance.", details: "128GB/256GB, Super Retina XDR display, A15 Bionic chip.", stock: 8, sort_order: 36 },
+  { id: "iphone15", name: "iPhone 15", price: 44500, cat: "Gadgets", img: "images/gadgets/iphone15.jpg", tag: "New", desc: "Featuring the Dynamic Island, a 48MP main camera, and USB-C connectivity.", details: "128GB, Super Retina XDR display, A16 Bionic chip.", stock: 4, sort_order: 37 },
+  { id: "iphone16", name: "iPhone 16", price: 54990, cat: "Gadgets", img: "images/gadgets/iphone16.jpg", tag: "Latest", desc: "Built for Apple Intelligence with the all-new Camera Control button architecture.", details: "128GB, Super Retina XDR display, A18 chip, durable color-infused glass.", stock: 6, sort_order: 38 },
+  { id: "iphone17promax", name: "iPhone 17 Pro Max", price: 81990, cat: "Gadgets", img: "images/gadgets/iphone17promax.jpg", tag: "Premium", desc: "The ultimate flagship powerhouse with next-generation telephoto modules and pro display tech.", details: "256GB, Always-On ProMotion display, A19 Pro chip, Titanium alloy design.", stock: 2, sort_order: 39 },
+
+  /* ==========================================================================
+     FOOD
+     ========================================================================== */
+  { id: "food1", name: "Assorted Biscuit Box Bundle", price: 900, cat: "Foods", img: "images/food/food1.jpg", tag: "Sale", desc: "A bulk box packed with a colorful variety of cream biscuits and wafers.", details: "Includes multiple flavored biscuit packs, perfect for family snacking.", stock: 10, sort_order: 40 },
+  { id: "food2", name: "Premium Cookie Tub Bundle", price: 760, cat: "Foods", img: "images/food/food2.jpg", tag: "Bundle", desc: "A sweet combination bundle featuring large tubs of butter and chocolate chip cookies.", details: "3-pack snack tubs, airtight seal to preserve maximum freshness.", stock: 8, sort_order: 41 },
+  { id: "food3", name: "Stacked Milk Biscuit Variety Pack", price: 450, cat: "Foods", img: "images/food/food3.jpg", tag: "", desc: "A tall stack of classic breakfast tea biscuits and crispy milk crackers.", details: "Contains 6 individual flavor boxes including original milk, banana, and chocolate.", stock: 15, sort_order: 42 },
+  { id: "food4", name: "Assorted Chocolate Miniatures Mix", price: 1380, cat: "Foods", img: "images/food/food4.jpg", tag: "Popular", desc: "An open party box filled to the brim with famous bite-sized chocolate bars.", details: "100-piece count, includes milk chocolate, caramel, and peanut miniatures.", stock: 5, sort_order: 43 },
+  { id: "food5", name: "Mega Chocolate Variety Gift Box", price: 900, cat: "Foods", img: "images/food/food5.jpg", tag: "Free Shipping", desc: "A neatly arranged cardboard gift box loaded with assortments of premium chocolates.", details: "100 pieces total, flat-packed secure shipping box ideal for holiday gifting.", stock: 12, sort_order: 44 },
+
+  /* ==========================================================================
+     FURNITURES - SEATING & LOUNGE (CHAIRS, BARS, SOFAS / SALA SETS)
+     ========================================================================== */
+  { id: "chair1", name: "Set of Lounge Chairs", price: 3000, cat: "Furnitures", img: "images/furniture/chair1.jpg", tag: "New", desc: "Comfortable, stylish, perfect for any living room.", details: "3-seater, high-density foam cushions, durable fabric upholstery.", stock: 1, sort_order: 7 },
+  { id: "bar1", name: "Modern Home Bar Counter Set", price: 5500, cat: "Furnitures", img: "images/furniture/bar1.jpg", tag: "Popular", desc: "A sleek and stylish bar counter perfect for entertaining guests.", details: "Includes 2 matching bar stools, marble-look countertop, built-in wine rack.", stock: 4, sort_order: 8 },
+  { id: "salaset1", name: "Classic 3-Piece Sala Set", price: 25000, cat: "Furnitures", img: "images/furniture/salaset1.jpg", tag: "Best Seller", desc: "A complete living room set perfect for family gatherings.", details: "Includes 1 three-seater sofa and 2 single armchairs, fabric upholstery.", stock: 2, sort_order: 20 },
+  { id: "salaset2", name: "Modern L-Shape Sectional Sala Set", price: 28500, cat: "Furnitures", img: "images/furniture/salaset2.jpg", tag: "Popular", desc: "Maximize your living room space with this premium sectional sofa configuration.", details: "Reversible chaise lounge, high-resilience foam, includes 4 throw pillows.", stock: 3, sort_order: 21 },
+  { id: "salaset3", name: "Scandinavian Minimalist Sala Set", price: 21000, cat: "Furnitures", img: "images/furniture/salaset3.jpg", tag: "New", desc: "Brighten your living room with clean lines and light pastel wood accents.", details: "2-seater + 1-seater combo, solid ash wood legs, linen fabric cover.", stock: 4, sort_order: 22 },
+  { id: "salaset4", name: "Chesterfield Leather Sala Set", price: 45000, cat: "Furnitures", img: "images/furniture/salaset4.jpg", tag: "Exclusive", desc: "Timeless luxury featuring deep button tufting and rolled arms.", details: "Premium top-grain faux leather, vintage brass nailhead accents.", stock: 1, sort_order: 23 },
+  { id: "salaset5", name: "Compact Apartment Sala Set", price: 16500, cat: "Furnitures", img: "images/furniture/salaset5.jpg", tag: "Sale", desc: "Specially designed for smaller living rooms, studios, or office reception areas.", details: "Loveseat sofa and matching coffee table set, space-saving design.", stock: 7, sort_order: 24 },
+  { id: "salaset6", name: "Contemporary Velvet Sala Set", price: 32000, cat: "Furnitures", img: "images/furniture/salaset6.jpg", tag: "", desc: "Plush velvet seating arrangement that brings an upscale vibe to your home.", details: "3-seater sofa + matching ottoman, gold-finished metal legs.", stock: 2, sort_order: 25 },
+  { id: "salaset7", name: "Modular Conversational Sala Set", price: 38000, cat: "Furnitures", img: "images/furniture/salaset7.jpg", tag: "New", desc: "Rearrange your living room setup on the fly with this modular 4-piece set.", details: "4 independent corner blocks, interlocking clips, stain-resistant fabric.", stock: 3, sort_order: 26 },
+  { id: "salaset9", name: "Rustic Rattan-Accent Sala Set", price: 19500, cat: "Furnitures", img: "images/furniture/salaset9.jpg", tag: "", desc: "Bring a warm, tropical, and cozy atmosphere into your living space.", details: "Woven natural rattan paneling, solid teak wood frame, white cushions.", stock: 2, sort_order: 27 },
+  { id: "salaset10", name: "Executive Tufted Sala Set", price: 35000, cat: "Furnitures", img: "images/furniture/salaset10.jpg", tag: "", desc: "An elegant configuration ideally suited for formal living rooms or executive offices.", details: "3-seater sofa and 1 matching accent chair, high-density orthopedic foam.", stock: 2, sort_order: 28 },
+  { id: "salaset11", name: "Urban Corduroy Sofa Sala Set", price: 24000, cat: "Furnitures", img: "images/furniture/salaset11.jpg", tag: "Popular", desc: "Ultra-soft corduroy fabric finish provides maximum coziness during movie nights.", details: "Extra-deep seating profile, overstuffed armrests, wash-safe cushion cases.", stock: 5, sort_order: 29 },
+  { id: "salaset12", name: "Convertible Sofa Bed Sala Set", price: 22500, cat: "Furnitures", img: "images/furniture/salaset12.jpg", tag: "Sale", desc: "Multi-functional living room set featuring a sofa that easily drops down into a bed.", details: "Click-clack mechanism, hidden storage under seats, converts to a full bed.", stock: 4, sort_order: 30 },
+  { id: "salaset13", name: "Grand Imperial Sectional Sala Set", price: 52000, cat: "Furnitures", img: "images/furniture/salaset13.jpg", tag: "Exclusive", desc: "A massive, premium U-shaped sectional set built for large families and spacious halls.", details: "Seats up to 8 people safely, solid hardwood construction, premium fabric.", stock: 1, sort_order: 31 },
+
+  /* ==========================================================================
+     FURNITURES - BEDROOM (BED FRAMES)
+     ========================================================================== */
+  { id: "bed2", name: "Luxury King-Size Bed Frame", price: 18500, cat: "Furnitures", img: "images/furniture/bed2.jpg", tag: "Best Seller", desc: "Experience ultimate comfort with this premium, heavy-duty bed frame.", details: "King size, tufted velvet headboard, solid mahogany wood slats.", stock: 3, sort_order: 9 },
+  { id: "bed3", name: "Modern Queen-Size Wooden Bed", price: 14000, cat: "Furnitures", img: "images/furniture/bed3.jpg", tag: "", desc: "Minimalist wooden bed frame that matches any modern bedroom aesthetic.", details: "Queen size, eco-friendly engineered wood, scratch-resistant finish.", stock: 5, sort_order: 10 },
+  { id: "bed4", name: "Twin Wooden Bunk Bed", price: 12500, cat: "Furnitures", img: "images/furniture/bed4.jpg", tag: "Sale", desc: "Space-saving bunk bed perfect for kids' rooms or shared spaces.", details: "Twin-over-twin configuration, built-in safety guardrails and ladder.", stock: 2, sort_order: 11 },
+  { id: "bed6", name: "Royal Canopy Bed Frame", price: 22000, cat: "Furnitures", img: "images/furniture/bed6.jpg", tag: "Exclusive", desc: "Bring an elegant, classic look to your master bedroom setup.", details: "Queen size, matte black iron frame, customizable curtain posts.", stock: 1, sort_order: 12 },
+  { id: "bed9", name: "Minimalist Japanese Platform Bed", price: 11000, cat: "Furnitures", img: "images/furniture/bed9.jpg", tag: "New", desc: "Low-profile platform bed designed for a clean, zen-like bedroom atmosphere.", details: "Double size, low-to-the-ground design, natural oak finish.", stock: 6, sort_order: 13 },
+
+  /* ==========================================================================
+     FURNITURES - TABLES & VANITIES
+     ========================================================================== */
+  { id: "TableSet1", name: "6-Seater Modern Dining Table Set", price: 19500, cat: "Furnitures", img: "images/furniture/TableSet1.jpg", tag: "Best Seller", desc: "Gather around for family meals with this durable and beautiful dining table setup.", details: "Tempered glass top dining table, 6 matching cushioned ergonomic chairs.", stock: 3, sort_order: 32 },
+  { id: "vanity1", name: "Classic Wooden Vanity Dressing Table", price: 7500, cat: "Furnitures", img: "images/furniture/vanity1.jpg", tag: "", desc: "An elegant vanity dresser featuring plenty of storage drawer space for cosmetics.", details: "Includes oval swivel mirror, 3 storage drawers, and a matching cushioned stool.", stock: 4, sort_order: 33 },
+  { id: "vanity2", name: "Hollywood LED Lighted Vanity Mirror Set", price: 11500, cat: "Furnitures", img: "images/furniture/vanity2.jpg", tag: "New", desc: "Perfect lighting setup for makeup application with built-in dimmable LED studio bulbs.", details: "9 dimmable smart bulbs, touch sensor control, USB power ports, glossy white finish.", stock: 3, sort_order: 34 },
+
+  /* ==========================================================================
+     ACCESSORIES - TABLES & VANITIES
+     ========================================================================== */
+  
+  { id: "logo1", name: "Magen David Clock", price: 4000, cat: "Accessories", img: "images/furniture/logo1.jpg", tag: "", desc: "Custom branded accent pillow to add a touch of personality to your couch.", details: "18x18 inches, hypoallergenic polyester fiberfill, washable cover.", stock: 20, sort_order: 14 },
+  { id: "logo2", name: "Magen David Clock", price: 4000, cat: "Accessories", img: "images/furniture/logo2.jpg", tag: "New", desc: "Compact footstool that doubles as an extra seat or a decorative piece.", details: "High-density foam, signature branded fabric upholstery, wooden legs.", stock: 8, sort_order: 15 },
+  { id: "logo3", name: "Magen David Clock", price: 4000, cat: "Accessories", img: "images/furniture/logo3.jpg", tag: "", desc: "Charming side table with custom subtle geometric engraving.", details: "Solid pine wood, 50cm height, dark walnut stain finish.", stock: 5, sort_order: 16 },
+  { id: "logo4", name: "Magen David Clock", price: 4000, cat: "Accessories", img: "images/furniture/logo4.jpg", tag: "Sale", desc: "Heavy-duty industrial-style stool with custom hardware detailing.", details: "Powder-coated steel frame, ergonomic wooden seat, fixed height.", stock: 12, sort_order: 17 },
+  { id: "logo5", name: "Magen David Clock", price: 4000, cat: "Accessories", img: "images/furniture/logo5.jpg", tag: "Popular", desc: "The ultimate relaxation chair featuring an adjustable reclining backrest.", details: "Breathable faux leather, 3-stage reclining mechanism, thick padding.", stock: 2, sort_order: 18 },
+  { id: "logo6", name: "Magen David Clock", price: 4000, cat: "Accessories", img: "images/furniture/logo6.jpg", tag: "", desc: "Organize your space elegantly with these modern floating display shelves.", details: "Hidden brackets included, weight capacity up to 10kg per shelf.", stock: 15, sort_order: 19 }
 ];
 
 let PRODUCTS = loadProductsFromStore();
